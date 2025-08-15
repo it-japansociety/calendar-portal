@@ -242,7 +242,7 @@ export default function Home() {
             }`}>
               <div className="w-full h-[600px] rounded-2xl overflow-hidden">
                 <iframe
-                  src="https://form.jotform.com/251745145244051"
+                  src="https://form.jotform.com/252113809267053"
                   className="w-full h-full border-0"
                   title="Japan Society Form"
                 />
@@ -275,7 +275,7 @@ export default function Home() {
             }`}>
               <div className="w-full h-[900px] md:h-[950px] lg:h-[1000px] rounded-xl overflow-hidden">
                 <iframe
-                  src="https://www.jotform.com/tables/251745145244051"
+                  src="https://www.jotform.com/tables/252113809267053"
                   className="w-full h-full border-0"
                   title="Japan Society Calendar Table"
                 />
@@ -296,11 +296,11 @@ export default function Home() {
               <p className={`text-lg max-w-2xl mx-auto ${
                 isDark ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                Live Google Sheets calendar view with real-time updates from our spreadsheet.
+                Live Excel Calendar view with real-time updates from our spreadsheet.
               </p>
             </div>
             
-            {/* Large Google Sheets container */}
+            {/* Large Excel Sheets container */}
             <div className={`rounded-2xl shadow-xl border p-2 overflow-hidden transition-all duration-300 hover:shadow-2xl max-w-[95vw] mx-auto ${
               isDark 
                 ? 'bg-gray-800 border-red-800/30' 
@@ -309,7 +309,7 @@ export default function Home() {
               <iframe 
                 className="w-full h-[700px] md:h-[800px] lg:h-[900px] rounded-xl"
                 src="https://docs.google.com/spreadsheets/d/e/2PACX-1vS_KF2wRY2ja4Rd4NB4h1-Xku2hDV8vpAoPsqI4AnHvxZQHbzcAhjJS6VT_zyImZg/pubhtml?gid=2124783547&single=true&widget=true&headers=false"
-                title="Japan Society Google Sheets Calendar"
+                title="Japan Society Excel Calendar"
                 frameBorder="0"
               />
             </div>
