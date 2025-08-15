@@ -1,0 +1,42 @@
+export const translations: Record<string, Record<string, string>> = {
+  en: {
+    "nav.home": "Home",
+    "nav.form": "Submit Form",
+    "nav.table": "Weekly View",
+    "nav.excel": "Excel Calendar",
+    "nav.main": "Main Site ↗",
+    "home.title": "Japan Society House Calendar Portal",
+    "home.desc": "Submit forms, view calendars, and manage event submissions — all in one place.",
+    "home.card.form": "Submit a Form",
+    "home.card.formDesc": "Send your registration or event information through our secure form system.",
+    "home.card.table": "View Schedule",
+    "home.card.tableDesc": "See submitted forms and upcoming activities in an organized table view.",
+    "home.card.excel": "Excel Calendar",
+    "home.card.excelDesc": "Access the live Excel weekly calendar view with real-time updates.",
+    "home.card.support": "Contact Us",
+    "home.card.supportDesc": "Need help? Reach out to our team anytime for assistance and support.",
+    "form.title": "Submit Form",
+    "calendar.title": "View Table/Calendar",
+    "excel.title": "Excel Weekly Calendar"
+  },
+  ja: {
+    "nav.home": "ホーム",
+    "nav.form": "フォームを提出",
+    "nav.table": "週間ビュー",
+    "nav.excel": "Excelカレンダー",
+    "nav.main": "メインサイト ↗",
+    "home.title": "日本社会ハウスカレンダーポータル",
+    "home.desc": "フォーム提出、カレンダー閲覧、イベント管理をここで。",
+    "home.card.form": "フォームを提出",
+    "home.card.formDesc": "安全なフォームシステムを通じて登録やイベント情報を送信します。",
+    "home.card.table": "スケジュールを見る",
+    "home.card.tableDesc": "提出されたフォームや予定を整理されたテーブルビューで確認します。",
+    "home.card.excel": "Excelカレンダー",
+    "home.card.excelDesc": "リアルタイム更新のライブExcel週間カレンダービューにアクセス。",
+    "home.card.support": "お問い合わせ",
+    "home.card.supportDesc": "ご不明な点がございましたら、お気軽にチームまでご連絡ください。",
+    "form.title": "フォーム提出",
+    "calendar.title": "テーブル／カレンダーを見る",
+    "excel.title": "Excel週間カレンダー"
+  }
+}
