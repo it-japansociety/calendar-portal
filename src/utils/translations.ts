@@ -2,7 +2,7 @@ export const translations: Record<string, Record<string, string>> = {
   en: {
     "nav.home": "Home",
     "nav.form": "Submit Form",
-    "nav.table": "Weekly View",
+    "nav.table": "Calendar",
     "nav.excel": "Excel Calendar",
     "nav.main": "Main Site ↗",
     "home.title": "Japan Society House Calendar Portal",
@@ -22,7 +22,7 @@ export const translations: Record<string, Record<string, string>> = {
   ja: {
     "nav.home": "ホーム",
     "nav.form": "フォームを提出",
-    "nav.table": "週間ビュー",
+    "nav.table": "カレンダー",
     "nav.excel": "Excelカレンダー",
     "nav.main": "メインサイト ↗",
     "home.title": "日本社会ハウスカレンダーポータル",
