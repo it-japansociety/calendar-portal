@@ -296,7 +296,7 @@ export default function Home() {
               <p className={`text-lg max-w-2xl mx-auto ${
                 isDark ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                Live Excel Calendar view with updates from our spreadsheet.
+                Live Weekly Calendar view with updates from our spreadsheet.
               </p>
             </div>
             
@@ -308,8 +308,8 @@ export default function Home() {
             }`}>
               <iframe 
                 className="w-full h-[700px] md:h-[800px] lg:h-[900px] rounded-xl"
-                src="https://docs.google.com/spreadsheets/d/e/2PACX-1vS_KF2wRY2ja4Rd4NB4h1-Xku2hDV8vpAoPsqI4AnHvxZQHbzcAhjJS6VT_zyImZg/pubhtml?gid=2124783547&single=true&widget=true&headers=false"
-                title="Japan Society Excel Calendar"
+                src="https://docs.google.com/spreadsheets/d/e/2PACX-1vS_KF2wRY2ja4Rd4NB4h1-Xku2hDV8vpAoPsqI4AnHvxZQHbzcAhjJS6VT_zyImZg/pubhtml?gid=1430970011&single=true"
+                title="Japan Society Weekly Calendar"
                 frameBorder="0"
               />
             </div>
