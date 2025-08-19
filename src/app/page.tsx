@@ -296,7 +296,7 @@ export default function Home() {
               <p className={`text-lg max-w-2xl mx-auto ${
                 isDark ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                Live Excel Calendar view with real-time updates from our spreadsheet.
+                Live Excel Calendar view with updates from our spreadsheet.
               </p>
             </div>
             

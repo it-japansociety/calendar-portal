@@ -3,7 +3,7 @@ export const translations: Record<string, Record<string, string>> = {
     "nav.home": "Home",
     "nav.form": "Submit Form",
     "nav.table": "Calendar",
-    "nav.excel": "Excel Calendar",
+    "nav.excel": "Weekly Calendar",
     "nav.main": "Main Site ↗",
     "home.title": "Japan Society House Calendar Portal",
     "home.desc": "Submit forms, view calendars, and manage event submissions — all in one place.",
@@ -11,13 +11,13 @@ export const translations: Record<string, Record<string, string>> = {
     "home.card.formDesc": "Send your registration or event information through our secure form system.",
     "home.card.table": "View Schedule",
     "home.card.tableDesc": "See submitted forms and upcoming activities in an organized table view.",
-    "home.card.excel": "Excel Calendar",
-    "home.card.excelDesc": "Access the live Excel weekly calendar view with real-time updates.",
+    "home.card.excel": "Weekly Calendar",
+    "home.card.excelDesc": "Access the live Excel Weekly calendar view with updates.",
     "home.card.support": "Contact Us",
     "home.card.supportDesc": "Need help? Reach out to our team anytime for assistance and support.",
     "form.title": "Submit Form",
     "calendar.title": "View Table/Calendar",
-    "excel.title": "Excel Weekly Calendar"
+    "excel.title": "Weekly Calendar"
   },
   ja: {
     "nav.home": "ホーム",
