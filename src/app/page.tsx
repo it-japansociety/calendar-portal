@@ -283,7 +283,7 @@ export default function Home() {
             </div>
           </section>
         )}
-
+/* Weekly Calendar Section */
         {/* Excel Section */}
         {currentSection === 'excel' && (
           <section className="animate-fadeIn">
