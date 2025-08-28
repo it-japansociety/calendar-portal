@@ -306,12 +306,7 @@ export default function Home() {
                 ? 'bg-gray-800 border-red-800/30' 
                 : 'bg-white border-red-200'
             }`}>
-              <iframe 
-                className="w-full h-[700px] md:h-[800px] lg:h-[900px] rounded-xl"
-                src="https://docs.google.com/spreadsheets/d/e/2PACX-1vS_KF2wRY2ja4Rd4NB4h1-Xku2hDV8vpAoPsqI4AnHvxZQHbzcAhjJS6VT_zyImZg/pubhtml?gid=1516263325&amp;single=true&amp;widget=true&amp;headers=false"
-                title="Japan Society Weekly Calendar"
-                frameBorder="0"
-              />
+              <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vTYIJ5GZv6QwMJqjH1hK0Xn_R81iXoE5bYAeVF2VzyzGSToGEtEsH_1Fvebh2T7LQ/pubhtml?gid=1778935160&amp;single=true&amp;widget=true&amp;headers=false"></iframe>
             </div>
           </section>
         )}
