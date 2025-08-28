@@ -167,7 +167,7 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto px-4 sm:px-6 lg:px-8 py-12" style="max-width: 100%;"> 
+      <main className="mx-auto px-4 sm:px-6 lg:px-8 py-12" style={{ maxWidth: "100%" }}> 
         {/* Home Section */}
         {currentSection === 'home' && (
           <section className="animate-fadeIn">
