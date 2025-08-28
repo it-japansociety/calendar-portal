@@ -301,15 +301,19 @@ export default function Home() {
             </div>
             
             {/* Large Excel Sheets container */}
-            <div className={`rounded-2xl shadow-xl border p-2 overflow-hidden transition-all duration-300 hover:shadow-2xl max-w-[95vw] mx-auto ${
-              isDark 
-                ? 'bg-gray-800 border-red-800/30' 
-                : 'bg-white border-red-200'
-            }`}>
-              <iframe className="w-full h-[700px] md:h-[800px] lg:h-[900px] rounded-xl" title="Japan Society Weekly Calendar" frameBorder="0"
-                src="https://docs.google.com/spreadsheets/d/e/2PACX-1vTYIJ5GZv6QwMJqjH1hK0Xn_R81iXoE5bYAeVF2VzyzGSToGEtEsH_1Fvebh2T7LQ/pubhtml?gid=1778935160&amp;single=true&amp;widget=true&amp;headers=false">
-              </iframe>
-            </div>
+              <div
+                className={`flex justify-center rounded-2xl shadow-xl border p-2 overflow-hidden transition-all duration-300 hover:shadow-2xl max-w-[95vw] mx-auto ${
+                  isDark ? 'bg-gray-800 border-red-800/30' : 'bg-white border-red-200'
+                }`}
+              >
+                <iframe
+                  className="w-full max-w-5xl h-[700px] md:h-[800px] lg:h-[900px] rounded-xl"
+                  title="Japan Society Weekly Calendar"
+                  frameBorder="0"
+                  src="https://docs.google.com/spreadsheets/d/e/2PACX-1vTYIJ5GZv6QwMJqjH1hK0Xn_R81iXoE5bYAeVF2VzyzGSToGEtEsH_1Fvebh2T7LQ/pubhtml?gid=1778935160&amp;single=true&amp;widget=true&amp;headers=false"
+                ></iframe>
+              </div>
+
           </section>
         )}
       </main>
