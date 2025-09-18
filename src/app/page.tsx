@@ -306,8 +306,10 @@ export default function Home() {
                   isDark ? 'bg-gray-800 border-red-800/30' : 'bg-white border-red-200'
                 }`}
               >
-              //Add Excel Sharepoint
-              // Created by Max (Excel-Sharepoint Weekly Calendar) 
+                {/* Add Excel SharePoint */}
+                
+                
+                {/* Created by Max (Excel-Sharepoint Weekly Calendar) */}r) 
               </div>
 
           </section>
