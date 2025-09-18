@@ -306,10 +306,24 @@ export default function Home() {
                   isDark ? 'bg-gray-800 border-red-800/30' : 'bg-white border-red-200'
                 }`}
               >
-               <iframe 
-                 className="w-full h-[1025px] border-0 rounded-xl"
-                 src="https://japansoc.sharepoint.com/:x:/s/JapanSociety/EW0er9HUm0JGpWy-bru4Y1IBi7bwFGZpLdIHwEGlHyD-hA?e=wAQiaY&action=embedview">
-               </iframe> // Created by Max (Excel-Sharepoint Weekly Calendar) 
+                //Add Excel Sharepoint
+               export default function ExcelEmbed() {
+                return (
+                  <div style={{ position: "relative", width: "100%", paddingBottom: "65%", height: 0 }}>
+                    <iframe
+                      src="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={c689ad3e-8cd1-45fc-9e9b-2670eb7fddb0}&action=embedview&wdAllowInteractivity=False&wdHideGridlines=True&wdHideHeaders=True&wdInConfigurator=True"
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
+                        border: "none",
+                      }}
+                    />
+                  </div>
+                );
+              } // Created by Max (Excel-Sharepoint Weekly Calendar) 
               </div>
 
           </section>
