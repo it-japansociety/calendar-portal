@@ -306,12 +306,7 @@ export default function Home() {
                   isDark ? 'bg-gray-800 border-red-800/30' : 'bg-white border-red-200'
                 }`}
               >
-                <iframe
-                  className="w-full max-w-5xl h-[700px] md:h-[800px] lg:h-[900px] rounded-xl"
-                  title="Japan Society Weekly Calendar"
-                  frameBorder="0"
-                  src="https://docs.google.com/spreadsheets/d/e/2PACX-1vS_KF2wRY2ja4Rd4NB4h1-Xku2hDV8vpAoPsqI4AnHvxZQHbzcAhjJS6VT_zyImZg/pubhtml?gid=1526459138&single=true"
-                ></iframe>
+               <iframe width="100%" height="1025" frameborder="0" scrolling="no" src="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={499f0501-9b73-4f1e-9121-d0d3f45d237c}&action=embedview&wdAllowInteractivity=False&wdHideGridlines=True&wdInConfigurator=True&wdInConfigurator=True"></iframe> 
               </div>
 
           </section>
