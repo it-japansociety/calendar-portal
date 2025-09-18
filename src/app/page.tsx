@@ -310,7 +310,7 @@ export default function Home() {
                   className="w-full max-w-5xl h-[700px] md:h-[800px] lg:h-[900px] rounded-xl"
                   title="Japan Society Weekly Calendar"
                   frameBorder="0"
-                  src="https://docs.google.com/spreadsheets/d/e/2PACX-1vTYIJ5GZv6QwMJqjH1hK0Xn_R81iXoE5bYAeVF2VzyzGSToGEtEsH_1Fvebh2T7LQ/pubhtml?gid=1778935160&amp;single=true&amp;widget=true&amp;headers=false"
+                  src="https://docs.google.com/spreadsheets/d/e/2PACX-1vS_KF2wRY2ja4Rd4NB4h1-Xku2hDV8vpAoPsqI4AnHvxZQHbzcAhjJS6VT_zyImZg/pubhtml?gid=1526459138&single=true"
                 ></iframe>
               </div>
 
