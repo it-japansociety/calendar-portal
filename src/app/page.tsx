@@ -308,7 +308,7 @@ export default function Home() {
               >
                <iframe 
                  className="w-full h-[1025px] border-0 rounded-xl"
-                 src="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={499f0501-9b73-4f1e-9121-d0d3f45d237c}&action=embedview&wdAllowInteractivity=False&wdHideGridlines=True&wdInConfigurator=True&wdInConfigurator=True"
+                 src="https://japansoc.sharepoint.com/:x:/s/JapanSociety/EW0er9HUm0JGpWy-bru4Y1IBi7bwFGZpLdIHwEGlHyD-hA?e=wAQiaY&action=embedview"
                  ></iframe> 
               </div>
 
