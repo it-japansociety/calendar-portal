@@ -307,32 +307,19 @@ export default function Home() {
                 }`}
               >
                 {/* Added by Robert */}
-                export default function Page() {
-                  const isDark = false; // just an example
-                
-                  return (
-                    <div
-                      className={`min-h-screen transition-all duration-500 ${
-                        isDark ? "bg-gray-900" : "bg-gray-50"
-                      }`}
-                    >
-                      {/* Add Excel SharePoint Embed */}
-                      <div style={{ position: "relative", width: "100%", paddingBottom: "65%", height: 0 }}>
-                        <iframe
-                          src="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={c689ad3e-8cd1-45fc-9e9b-2670eb7fddb0}&action=embedview&wdAllowInteractivity=False&wdHideGridlines=True&wdHideHeaders=True&wdInConfigurator=True"
-                          style={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            width: "100%",
-                            height: "100%",
-                            border: "none",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                }
+                <div style={{ position: "relative", width: "100%", paddingBottom: "65%", height: 0 }}>
+                  <iframe
+                    src="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={c689ad3e-8cd1-45fc-9e9b-2670eb7fddb0}&action=embedview&wdAllowInteractivity=False&wdHideGridlines=True&wdHideHeaders=True&wdInConfigurator=True"
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      border: "none",
+                    }}
+                  />
+                </div>
 
                 {/* Created by Max (Excel-Sharepoint Weekly Calendar) */}
               </div>
