@@ -308,8 +308,8 @@ export default function Home() {
               >
                <iframe 
                  className="w-full h-[1025px] border-0 rounded-xl"
-                 src="https://japansoc.sharepoint.com/:x:/s/JapanSociety/EW0er9HUm0JGpWy-bru4Y1IBi7bwFGZpLdIHwEGlHyD-hA?e=wAQiaY&action=embedview"
-                 ></iframe> 
+                 src="https://japansoc.sharepoint.com/:x:/s/JapanSociety/EW0er9HUm0JGpWy-bru4Y1IBi7bwFGZpLdIHwEGlHyD-hA?e=wAQiaY&action=embedview">
+               </iframe> // Created by Max (Excel-Sharepoint Weekly Calendar) 
               </div>
 
           </section>
