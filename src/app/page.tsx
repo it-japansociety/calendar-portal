@@ -307,9 +307,25 @@ export default function Home() {
                 }`}
               >
                 {/* Add Excel SharePoint */}
-                
-                
-                {/* Created by Max (Excel-Sharepoint Weekly Calendar) */}r) 
+                export default function ExcelEmbed() {
+                  return (
+                    <div style={{ position: "relative", width: "100%", paddingBottom: "65%", height: 0 }}>
+                      <iframe
+                        src="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={c689ad3e-8cd1-45fc-9e9b-2670eb7fddb0}&action=embedview&wdAllowInteractivity=False&wdHideGridlines=True&wdHideHeaders=True&wdInConfigurator=True"
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: "100%",
+                          border: "none",
+                        }}
+                      />
+                    </div>
+                  );
+                }
+
+                {/* Created by Max (Excel-Sharepoint Weekly Calendar) */}
               </div>
 
           </section>
@@ -319,7 +335,7 @@ export default function Home() {
   )
 }
 
-// Components
+{/* Components */}
 interface NavLinkProps {
   onClick: () => void
   children: React.ReactNode
