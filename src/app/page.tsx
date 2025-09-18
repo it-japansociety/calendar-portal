@@ -306,7 +306,10 @@ export default function Home() {
                   isDark ? 'bg-gray-800 border-red-800/30' : 'bg-white border-red-200'
                 }`}
               >
-               <iframe width="100%" height="1025" frameborder="0" scrolling="no" src="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={499f0501-9b73-4f1e-9121-d0d3f45d237c}&action=embedview&wdAllowInteractivity=False&wdHideGridlines=True&wdInConfigurator=True&wdInConfigurator=True"></iframe> 
+               <iframe 
+                 className="w-full h-[1025px] border-0 rounded-xl"
+                 src="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={499f0501-9b73-4f1e-9121-d0d3f45d237c}&action=embedview&wdAllowInteractivity=False&wdHideGridlines=True&wdInConfigurator=True&wdInConfigurator=True"
+                 ></iframe> 
               </div>
 
           </section>
