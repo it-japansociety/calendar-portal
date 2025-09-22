@@ -309,7 +309,7 @@ export default function Home() {
                 {/* Created by Max (Excel-Sharepoint Weekly Calendar) */}
                 <div style={{ position: "relative", width: "100%", paddingBottom: "65%", height: 0 }}>
                   <iframe
-                    src="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={c689ad3e-8cd1-45fc-9e9b-2670eb7fddb0}&action=embedview&wdAllowInteractivity=False&Item='This%20Week'!A1&wdHideGridlines=True&wdDownloadButton=True&wdHideHeaders=True&wdInConfigurator=True&wdInConfigurator=True"
+                    src="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={c689ad3e-8cd1-45fc-9e9b-2670eb7fddb0}&action=embedview&wdAllowInteractivity=False&wdActiveCell='This%20Week'!A1&wdHideGridlines=True&wdDownloadButton=True&wdHideHeaders=True&wdInConfigurator=True&wdInConfigurator=True"
                     style={{
                       position: "absolute",
                       top: 0,
