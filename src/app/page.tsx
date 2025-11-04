@@ -306,10 +306,36 @@ export default function Home() {
                   isDark ? 'bg-gray-800 border-red-800/30' : 'bg-white border-red-200'
                 }`}
               >
-                {/* Created by Max (Excel-Sharepoint Weekly Calendar) */}
-                <div style={{ position: "relative", width: "100%", paddingBottom: "65%", height: 0 }}>
+              {/* Created by Max (Excel-Sharepoint Weekly Calendar) */}
+              <div>
+                {/* Open / Print button */}
+                <a
+                  href="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={c689ad3e-8cd1-45fc-9e9b-2670eb7fddb0}&action=view" target="_blank" rel="noopener noreferrer"
+                  style={{
+                    display: "inline-block",
+                    padding: "8px 12px",
+                    background: "#004080",
+                    color: "#fff",
+                    textDecoration: "none",
+                    borderRadius: "4px",
+                    marginBottom: "12px",
+                    fontWeight: "500",
+                  }}
+                >
+                  Open / Print in Excel Online
+                </a>
+              
+                {/* Embedded Excel view */}
+                <div
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                    paddingBottom: "65%",
+                    height: 0,
+                  }}
+                >
                   <iframe
-                    src="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={c689ad3e-8cd1-45fc-9e9b-2670eb7fddb0}&action=embedview&wdAllowInteractivity=False&wdActiveCell='This%20Week'!A1&wdHideGridlines=True&wdDownloadButton=True&wdHideHeaders=True&wdInConfigurator=True&wdInConfigurator=True"
+                    src="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={c689ad3e-8cd1-45fc-9e9b-2670eb7fddb0}&action=embedview&wdAllowInteractivity=False&wdActiveCell='This%20Week'!A1&wdHideGridlines=True&wdDownloadButton=True&wdHideHeaders=True&wdInConfigurator=True"
                     style={{
                       position: "absolute",
                       top: 0,
@@ -320,7 +346,7 @@ export default function Home() {
                     }}
                   />
                 </div>
-
+              
                 {/* Modified by Robert */}
               </div>
 
