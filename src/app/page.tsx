@@ -301,12 +301,10 @@ export default function Home() {
             </div>
             
             {/* Large Excel Sheets container */}
-              {/* <div>
-                className={`flex justify-center rounded-2xl shadow-xl border p-2 overflow-hidden transition-all duration-300 hover:shadow-2xl max-w-[95vw] mx-auto ${
-                  isDark ? 'bg-gray-800 border-red-800/30' : 'bg-white border-red-200'
-                }`}
-              </div> */}
-
+            <div>
+              className={`flex justify-center rounded-2xl shadow-xl border p-2 overflow-hidden transition-all duration-300 hover:shadow-2xl max-w-[95vw] mx-auto ${
+              isDark ? 'bg-gray-800 border-red-800/30' : 'bg-white border-red-200'}`}
+            </div>
               {/* Created by Max (Excel-Sharepoint Weekly Calendar) */}
 
               {/* Embedded Excel view */}
