@@ -318,7 +318,7 @@ export default function Home() {
                   }}
                 >
                   <iframe
-                    src="https://japansoc.sharepoint.com/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc={e0169345-0224-4f18-b5f0-cc974fa4afa1}"
+                    src="https://japansoc.sharepoint.com/:x:/s/JapanSociety/IQBFkxbgJAIYT7XwzJdPpK-hAepzHKqBWC0bKfS_8ZJ2678"
                     style={{
                       position: "absolute",
                       top: 0,
