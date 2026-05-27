@@ -16,7 +16,7 @@ export default function Home() {
   const [eventsLoading, setEventsLoading] = useState(false)
   const [eventsFilters, setEventsFilters] = useState({
     date_from: '', date_to: '', status: '', department: '', location: '',
-    include_archived: false, page: 1,
+    search: '', include_archived: false, page: 1,
   })
   const [availQuery, setAvailQuery] = useState({ date: '', start_time: '', end_time: '', location: '' })
   const [availResult, setAvailResult] = useState<AvailabilityResult | null>(null)
@@ -68,6 +68,7 @@ export default function Home() {
       if (eventsFilters.status)    params.set('status',    eventsFilters.status)
       if (eventsFilters.department) params.set('department', eventsFilters.department)
       if (eventsFilters.location)  params.set('location',  eventsFilters.location)
+      if (eventsFilters.search)    params.set('search',    eventsFilters.search)
       if (eventsFilters.include_archived) params.set('include_archived', 'true')
       params.set('page', String(eventsFilters.page))
       const res = await fetch(`/api/events?${params}`)
@@ -121,20 +122,25 @@ export default function Home() {
       }`}>
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo - Just "Japan Society" */}
-            <button 
+            {/* Logo */}
+            <button
               onClick={() => showSection('home')}
-              className={`text-xl font-bold transition-all duration-300 hover:scale-105 ${
-                isDark ? 'text-white' : 'text-gray-900'
-              }`}
+              className="flex items-center gap-2 transition-all duration-300 hover:scale-105"
             >
-              Japan Society
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/favicon.ico" alt="Japan Society" className="w-8 h-8 rounded-sm" />
+              <span className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Japan Society
+              </span>
             </button>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-1">
               <NavLink onClick={() => showSection('home')} active={currentSection === 'home'} isDark={isDark}>
                 {t('nav.home')}
+              </NavLink>
+              <NavLink onClick={() => showSection('events')} active={currentSection === 'events'} isDark={isDark}>
+                {t('nav.events')}
               </NavLink>
               <NavLink onClick={() => showSection('form')} active={currentSection === 'form'} isDark={isDark}>
                 {t('nav.form')}
@@ -144,9 +150,6 @@ export default function Home() {
               </NavLink>
               <NavLink onClick={() => showSection('excel')} active={currentSection === 'excel'} isDark={isDark}>
                 {t('nav.excel')}
-              </NavLink>
-              <NavLink onClick={() => showSection('events')} active={currentSection === 'events'} isDark={isDark}>
-                {t('nav.events')}
               </NavLink>
               <a
                 href="https://apps.japansociety.org"
@@ -210,6 +213,9 @@ export default function Home() {
                 <MobileNavLink onClick={() => showSection('home')} active={currentSection === 'home'} isDark={isDark}>
                   {t('nav.home')}
                 </MobileNavLink>
+                <MobileNavLink onClick={() => showSection('events')} active={currentSection === 'events'} isDark={isDark}>
+                  {t('nav.events')}
+                </MobileNavLink>
                 <MobileNavLink onClick={() => showSection('form')} active={currentSection === 'form'} isDark={isDark}>
                   {t('nav.form')}
                 </MobileNavLink>
@@ -218,9 +224,6 @@ export default function Home() {
                 </MobileNavLink>
                 <MobileNavLink onClick={() => showSection('excel')} active={currentSection === 'excel'} isDark={isDark}>
                   {t('nav.excel')}
-                </MobileNavLink>
-                <MobileNavLink onClick={() => showSection('events')} active={currentSection === 'events'} isDark={isDark}>
-                  {t('nav.events')}
                 </MobileNavLink>
               </div>
             </div>
@@ -250,6 +253,13 @@ export default function Home() {
             {/* Clean Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
               <CleanCard
+                onClick={() => showSection('events')}
+                title={t('home.card.events')}
+                description={t('home.card.eventsDesc')}
+                isDark={isDark}
+                icon="🔍"
+              />
+              <CleanCard
                 onClick={() => showSection('form')}
                 title={t('home.card.form')}
                 description={t('home.card.formDesc')}
@@ -269,13 +279,6 @@ export default function Home() {
                 description={t('home.card.excelDesc')}
                 isDark={isDark}
                 icon="📊"
-              />
-              <CleanCard
-                onClick={() => showSection('events')}
-                title={t('home.card.events')}
-                description={t('home.card.eventsDesc')}
-                isDark={isDark}
-                icon="🗄️"
               />
               <CleanCard
                 onClick={() => window.open('https://japan-society.gogenuity.com/help_center', '_blank')}
@@ -473,17 +476,29 @@ export default function Home() {
                   </select>
                 </div>
               </div>
-              <button
-                onClick={checkAvailability}
-                disabled={!availQuery.date || availLoading}
-                className={`px-5 py-2 rounded-lg font-medium text-sm transition-all ${
-                  availQuery.date && !availLoading
-                    ? 'bg-red-600 text-white hover:bg-red-700'
-                    : isDark ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {availLoading ? 'Checking…' : 'Check Availability'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={checkAvailability}
+                  disabled={!availQuery.date || availLoading}
+                  className={`px-5 py-2 rounded-lg font-medium text-sm transition-all ${
+                    availQuery.date && !availLoading
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : isDark ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {availLoading ? 'Checking…' : 'Check Availability'}
+                </button>
+                {(availQuery.date || availQuery.start_time || availQuery.end_time || availQuery.location || availResult) && (
+                  <button
+                    onClick={() => { setAvailQuery({ date: '', start_time: '', end_time: '', location: '' }); setAvailResult(null) }}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                      isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
 
               {availResult && (
                 <div className={`mt-4 rounded-xl p-4 border ${
@@ -512,6 +527,23 @@ export default function Home() {
 
             {/* Filter Bar */}
             <div className={`rounded-2xl border p-4 mb-4 ${isDark ? 'bg-gray-800 border-red-800/30' : 'bg-white border-red-200'}`}>
+              <div className="mb-3 flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Search events by name…"
+                  value={eventsFilters.search}
+                  onChange={e => setEventsFilters(f => ({ ...f, search: e.target.value, page: 1 }))}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                />
+                {(eventsFilters.search || eventsFilters.date_from || eventsFilters.date_to || eventsFilters.status || eventsFilters.department || eventsFilters.location) && (
+                  <button
+                    onClick={() => setEventsFilters(f => ({ ...f, search: '', date_from: '', date_to: '', status: '', department: '', location: '', page: 1 }))}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
                 <div>
                   <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>From</label>

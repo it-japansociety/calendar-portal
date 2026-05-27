@@ -23,7 +23,7 @@ async function handleImport(request: Request): Promise<Response> {
     return Response.json({ error: 'Authorization: Bearer <JOTFORM_API_KEY> required' }, { status: 401 })
   }
 
-  let body: { dry_run?: boolean; offset?: number; debug?: boolean } = {}
+  let body: { dry_run?: boolean; offset?: number; debug?: boolean; since_date?: string } = {}
   try {
     body = await request.json()
   } catch {
@@ -33,6 +33,8 @@ async function handleImport(request: Request): Promise<Response> {
   const dryRun = body.dry_run === true
   const debugMode = body.debug === true
   const startOffset = Math.max(0, body.offset || 0)
+  // Only fetch submissions created after this date (YYYY-MM-DD), skips historical re-import
+  const sinceDate = body.since_date || ''
 
   // Debug mode: fetch first submission and return raw answer labels
   if (debugMode) {
@@ -68,9 +70,10 @@ async function handleImport(request: Request): Promise<Response> {
 
   try {
     while (true) {
+      const dateFilter = sinceDate ? `&filter[created_at:gt]=${sinceDate}+00:00:00` : ''
       const res = await fetch(
         `https://api.jotform.com/form/${JOTFORM_FORM_ID}/submissions` +
-        `?apiKey=${apiKey}&limit=${limit}&offset=${offset}&orderby=created_at&direction=ASC`
+        `?apiKey=${apiKey}&limit=${limit}&offset=${offset}&orderby=created_at&direction=ASC${dateFilter}`
       )
 
       if (!res.ok) {

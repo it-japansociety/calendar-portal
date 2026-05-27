@@ -13,11 +13,12 @@ jobs:
     steps:
       - name: Sync JotForm submissions to Cloudflare D1
         run: |
+          SINCE=$(date -u -d "2 days ago" +"%Y-%m-%d")
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             https://calendar-portal.japan-society-account.workers.dev/api/import \
             -H "Authorization: Bearer ${{ secrets.JOTFORM_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"dry_run": false}')
+            -d "{\"dry_run\": false, \"since_date\": \"$SINCE\"}")
 
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | head -n-1)

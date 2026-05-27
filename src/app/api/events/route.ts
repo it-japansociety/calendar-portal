@@ -13,6 +13,7 @@ export async function GET(request: Request): Promise<Response> {
   const statusFilter = p.get('status') || ''
   const department   = p.get('department') || ''
   const location     = p.get('location') || ''
+  const search       = p.get('search') || ''
   const inclArchived = p.get('include_archived') === 'true'
   const page         = Math.max(1, parseInt(p.get('page') || '1', 10))
   const pageSize     = Math.min(200, Math.max(1, parseInt(p.get('page_size') || '50', 10)))
@@ -47,6 +48,7 @@ export async function GET(request: Request): Promise<Response> {
   if (dateTo)   { conditions.push('event_date <= ?'); bindings.push(dateTo) }
   if (department) { conditions.push('department = ?'); bindings.push(department) }
   if (location)   { conditions.push('location = ?');   bindings.push(location) }
+  if (search)     { conditions.push('event_name LIKE ?'); bindings.push(`%${search}%`) }
 
   if (statusFilter) {
     const statuses = statusFilter.split(',').map(s => s.trim()).filter(Boolean)
@@ -81,7 +83,9 @@ export async function GET(request: Request): Promise<Response> {
       pagination: { page, page_size: pageSize, total },
     }
 
-    return Response.json(response)
+    return Response.json(response, {
+      headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=120' },
+    })
   } catch (err) {
     console.error('Events query error', err)
     return Response.json({ error: 'Query failed' }, { status: 500 })
