@@ -7,6 +7,15 @@ const JOTFORM_FORM_ID = '252113809267053'
 const BATCH_SIZE = 100
 
 export async function POST(request: Request): Promise<Response> {
+  try {
+    return await handleImport(request)
+  } catch (err) {
+    console.error('Unhandled import error', err)
+    return Response.json({ error: 'Unhandled error', details: String(err) }, { status: 500 })
+  }
+}
+
+async function handleImport(request: Request): Promise<Response> {
   // Read API key from Cloudflare context env (secrets set via Dashboard/wrangler)
   let apiKey = ''
   try {
