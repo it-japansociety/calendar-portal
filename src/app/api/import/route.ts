@@ -1,5 +1,4 @@
 import { getDB } from '@/lib/cloudflare'
-import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { mapAnswersToEvent } from '@/lib/jotform-parser'
 import type { JotFormAnswers } from '@/lib/jotform-parser'
 
@@ -16,18 +15,12 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 async function handleImport(request: Request): Promise<Response> {
-  // Read API key from Cloudflare context env (secrets set via Dashboard/wrangler)
-  let apiKey = ''
-  try {
-    const { env } = await getCloudflareContext()
-    apiKey = (env as CloudflareEnv & { JOTFORM_API_KEY?: string }).JOTFORM_API_KEY || process.env.JOTFORM_API_KEY || ''
-  } catch {
-    apiKey = process.env.JOTFORM_API_KEY || ''
-  }
-
+  // API key is passed in the Authorization header by the caller (GitHub Actions / admin)
+  // and used directly for JotForm API calls — no Cloudflare secret needed
   const authHeader = request.headers.get('Authorization') || ''
-  if (!apiKey || authHeader !== `Bearer ${apiKey}`) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const apiKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
+  if (!apiKey) {
+    return Response.json({ error: 'Authorization: Bearer <JOTFORM_API_KEY> required' }, { status: 401 })
   }
 
   let body: { dry_run?: boolean; offset?: number } = {}
