@@ -45,7 +45,7 @@ export async function POST(request: Request): Promise<Response> {
   let inserted = 0
   let skipped = 0
   let offset = startOffset
-  const limit = 1000
+  const limit = 100
 
   try {
     while (true) {
