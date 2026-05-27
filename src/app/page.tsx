@@ -128,7 +128,7 @@ export default function Home() {
               className="flex items-center gap-2 transition-all duration-300 hover:scale-105"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/favicon.ico" alt="Japan Society" className="w-8 h-8 rounded-sm" />
+              <img src="/Japan-Society-Logo-White Background.png" alt="Japan Society" className="w-8 h-8 rounded-full" />
               <span className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Japan Society
               </span>
