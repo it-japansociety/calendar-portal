@@ -215,32 +215,41 @@ export default function Home() {
         {/* Form Section */}
         {currentSection === 'form' && (
           <section className="animate-fadeIn">
-            <div className="text-center mb-12">
+            <div className="text-center mb-8">
               <h2 className={`text-3xl md:text-4xl font-bold mb-4 ${
                 isDark ? 'text-white' : 'text-gray-900'
               }`}>
                 {t('form.title')}
               </h2>
-              <p className={`text-lg max-w-2xl mx-auto ${
+              <p className={`text-lg max-w-2xl mx-auto mb-3 ${
                 isDark ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                Complete the form below to submit your information or register for events.
+                Fill out all required fields to submit your event information or registration.
               </p>
+              <a
+                href="https://form.jotform.com/252113809267053"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-text text-sm underline underline-offset-2 transition-colors ${
+                  isDark ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700'
+                }`}
+              >
+                Open form in new tab ↗
+              </a>
             </div>
-            
-            <div className={`rounded-3xl shadow-xl border p-8 transition-all duration-300 hover:shadow-2xl ${
-              isDark 
-                ? 'bg-gray-800 border-red-800/30' 
+
+            <div className={`rounded-3xl shadow-xl border overflow-hidden transition-all duration-300 hover:shadow-2xl ${
+              isDark
+                ? 'bg-gray-800 border-red-800/30'
                 : 'bg-white border-red-200'
             }`}>
-              <div className="w-full h-[600px] rounded-2xl overflow-hidden">
-                <iframe
-                  src="https://form.jotform.com/252113809267053"
-                  className="w-full h-full border-0"
-                  title="Japan Society Form"
-                  loading="lazy"
-                />
-              </div>
+              <iframe
+                src="https://form.jotform.com/252113809267053"
+                className="w-full border-0 block"
+                style={{ height: 'min(1100px, 85vh)' }}
+                title="Japan Society Form"
+                loading="lazy"
+              />
             </div>
           </section>
         )}
