@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { translations } from '../utils/translations'
 
 export default function Home() {
@@ -10,48 +10,41 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('theme')
-      const savedLang = localStorage.getItem('language')
-      
-      if (savedTheme === 'dark') {
-        setIsDark(true)
-        document.documentElement.classList.add('dark')
-      }
-      
-      if (savedLang) setLanguage(savedLang)
+    const savedTheme = localStorage.getItem('theme')
+    const savedLang = localStorage.getItem('language')
+
+    if (savedTheme === 'dark') {
+      setIsDark(true)
+      document.documentElement.classList.add('dark')
     }
+
+    if (savedLang) setLanguage(savedLang)
   }, [])
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     const newIsDark = !isDark
     setIsDark(newIsDark)
-    
-    if (typeof window !== 'undefined') {
-      if (newIsDark) {
-        document.documentElement.classList.add('dark')
-        localStorage.setItem('theme', 'dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-        localStorage.setItem('theme', 'light')
-      }
+    if (newIsDark) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
     }
-  }
+  }, [isDark])
 
-  const toggleLanguage = () => {
+  const toggleLanguage = useCallback(() => {
     const newLang = language === 'en' ? 'ja' : 'en'
     setLanguage(newLang)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('language', newLang)
-    }
-  }
+    localStorage.setItem('language', newLang)
+  }, [language])
 
-  const t = (key: string) => translations[language]?.[key] || key
+  const t = useCallback((key: string) => translations[language]?.[key] || key, [language])
 
-  const showSection = (section: string) => {
+  const showSection = useCallback((section: string) => {
     setCurrentSection(section)
     setMobileMenuOpen(false)
-  }
+  }, [])
 
   return (
     <div className={`min-h-screen transition-all duration-500 ${
@@ -245,6 +238,7 @@ export default function Home() {
                   src="https://form.jotform.com/252113809267053"
                   className="w-full h-full border-0"
                   title="Japan Society Form"
+                  loading="lazy"
                 />
               </div>
             </div>
@@ -278,6 +272,7 @@ export default function Home() {
                   src="https://www.jotform.com/tables/252113809267053"
                   className="w-full h-full border-0"
                   title="Japan Society Calendar Table"
+                  loading="lazy"
                 />
               </div>
             </div>
@@ -318,7 +313,10 @@ export default function Home() {
                   }}
                 >
                   <iframe
-                    src="https://japansoc.sharepoint.com/:x:/s/JapanSociety/IQBFkxbgJAIYT7XwzJdPpK-hAepzHKqBWC0bKfS_8ZJ2678"
+                    src="https://japansoc.sharepoint.com/:x:/r/sites/JapanSociety/_layouts/15/Doc.aspx?sourcedoc=%7Be0169345-0224-4f18-b5f0-cc974fa4afa1%7D&action=embedview&wdAllowInteractivity=False&wdHideGridlines=True&wdHideHeaders=True&wdDownloadButton=True&wdInConfigurator=True&edaebf=rslc0"
+                    title="Weekly Calendar"
+                    loading="lazy"
+                    allowFullScreen
                     style={{
                       position: "absolute",
                       top: 0,
