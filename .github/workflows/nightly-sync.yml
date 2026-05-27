@@ -1,0 +1,32 @@
+name: Nightly Calendar Sync
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # 2:00 AM EST (UTC-5) — change to '0 6 * * *' during EDT (UTC-4)
+  workflow_dispatch:       # allows manual trigger from the GitHub Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Sync JotForm submissions to Cloudflare D1
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            https://calendar-portal.workers.dev/api/import \
+            -H "Authorization: Bearer ${{ secrets.JOTFORM_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"dry_run": false}')
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Sync failed with status $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "Sync complete"

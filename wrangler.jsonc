@@ -11,6 +11,13 @@
     "binding": "ASSETS",
     "directory": ".open-next/assets"
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "calendar-portal-db",
+      "database_id": "3815bd6c-9be4-4ef6-b64d-dab1a911307b"
+    }
+  ],
   "observability": {
     "enabled": true
   },

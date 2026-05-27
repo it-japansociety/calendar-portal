@@ -17,7 +17,12 @@ export const translations: Record<string, Record<string, string>> = {
     "home.card.supportDesc": "Need help? Reach out to our team anytime for assistance and support.",
     "form.title": "Submit Form",
     "calendar.title": "View Table/Calendar",
-    "excel.title": "Weekly Calendar"
+    "excel.title": "Weekly Calendar",
+    "nav.events": "Events DB",
+    "events.title": "Event Database",
+    "events.desc": "Search and filter all submitted events. Check availability for a date and time.",
+    "home.card.events": "Events Database",
+    "home.card.eventsDesc": "Search, filter, and check availability across all submitted events."
   },
   ja: {
     "nav.home": "ホーム",
@@ -37,6 +42,11 @@ export const translations: Record<string, Record<string, string>> = {
     "home.card.supportDesc": "ご不明な点がございましたら、お気軽にチームまでご連絡ください。",
     "form.title": "フォーム提出",
     "calendar.title": "テーブル／カレンダーを見る",
-    "excel.title": "Excel週間カレンダー"
+    "excel.title": "Excel週間カレンダー",
+    "nav.events": "イベントDB",
+    "events.title": "イベントデータベース",
+    "events.desc": "提出されたイベントを検索・フィルター。日時の空き状況を確認できます。",
+    "home.card.events": "イベントDB",
+    "home.card.eventsDesc": "提出されたすべてのイベントを検索、フィルター、空き確認できます。"
   }
 }
