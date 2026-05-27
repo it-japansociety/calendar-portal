@@ -18,6 +18,13 @@
       "database_id": "3815bd6c-9be4-4ef6-b64d-dab1a911307b"
     }
   ],
+  "routes": [
+    {
+      "pattern": "calendar.japansociety.org",
+      "zone_name": "japansociety.org",
+      "custom_domain": true
+    }
+  ],
   "observability": {
     "enabled": true
   },

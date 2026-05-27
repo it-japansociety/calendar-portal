@@ -18,11 +18,11 @@ export const translations: Record<string, Record<string, string>> = {
     "form.title": "Submit Form",
     "calendar.title": "View Table/Calendar",
     "excel.title": "Weekly Calendar",
-    "nav.events": "Events DB",
-    "events.title": "Event Database",
-    "events.desc": "Search and filter all submitted events. Check availability for a date and time.",
-    "home.card.events": "Events Database",
-    "home.card.eventsDesc": "Search, filter, and check availability across all submitted events."
+    "nav.events": "Availability",
+    "events.title": "Availability",
+    "events.desc": "Check venue availability and browse upcoming events.",
+    "home.card.events": "Availability",
+    "home.card.eventsDesc": "Check if a date and time is available, or browse all upcoming events."
   },
   ja: {
     "nav.home": "ホーム",
@@ -43,10 +43,10 @@ export const translations: Record<string, Record<string, string>> = {
     "form.title": "フォーム提出",
     "calendar.title": "テーブル／カレンダーを見る",
     "excel.title": "Excel週間カレンダー",
-    "nav.events": "イベントDB",
-    "events.title": "イベントデータベース",
-    "events.desc": "提出されたイベントを検索・フィルター。日時の空き状況を確認できます。",
-    "home.card.events": "イベントDB",
-    "home.card.eventsDesc": "提出されたすべてのイベントを検索、フィルター、空き確認できます。"
+    "nav.events": "空き確認",
+    "events.title": "空き確認",
+    "events.desc": "会場の空き状況の確認と今後のイベントの閲覧ができます。",
+    "home.card.events": "空き確認",
+    "home.card.eventsDesc": "日時の空き状況を確認したり、今後のイベントを一覧で見ることができます。"
   }
 }
