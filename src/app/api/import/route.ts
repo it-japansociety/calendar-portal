@@ -23,7 +23,7 @@ async function handleImport(request: Request): Promise<Response> {
     return Response.json({ error: 'Authorization: Bearer <JOTFORM_API_KEY> required' }, { status: 401 })
   }
 
-  let body: { dry_run?: boolean; offset?: number } = {}
+  let body: { dry_run?: boolean; offset?: number; debug?: boolean } = {}
   try {
     body = await request.json()
   } catch {
@@ -31,7 +31,24 @@ async function handleImport(request: Request): Promise<Response> {
   }
 
   const dryRun = body.dry_run === true
+  const debugMode = body.debug === true
   const startOffset = Math.max(0, body.offset || 0)
+
+  // Debug mode: fetch first submission and return raw answer labels
+  if (debugMode) {
+    const res = await fetch(
+      `https://api.jotform.com/form/${JOTFORM_FORM_ID}/submissions?apiKey=${apiKey}&limit=1&offset=0`
+    )
+    const json = await res.json() as { content: Array<{ id: string; answers: Record<string, { text?: string; answer?: unknown }> }> }
+    const first = json.content?.[0]
+    if (!first) return Response.json({ error: 'No submissions found' }, { status: 404 })
+    const fields = Object.entries(first.answers).map(([id, a]) => ({
+      id,
+      text: a.text,
+      answer: a.answer,
+    }))
+    return Response.json({ submission_id: first.id, fields })
+  }
 
   let db: D1Database | undefined
   if (!dryRun) {
@@ -77,7 +94,7 @@ async function handleImport(request: Request): Promise<Response> {
           const stmts = chunk.map(sub => {
             const ev = mapAnswersToEvent(sub.answers)
             return db!.prepare(`
-              INSERT OR IGNORE INTO events (
+              INSERT OR REPLACE INTO events (
                 event_name, department, location, event_date, day_of_week,
                 event_start, event_end, hold_start, hold_end, doors_open,
                 check_in_time, run_time, contact_name, email, phone,

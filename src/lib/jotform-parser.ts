@@ -20,6 +20,12 @@ function findByLabel(answers: JotFormAnswers, label: string): JotFormAnswer | un
 function str(val: unknown): string {
   if (typeof val === 'string') return val.trim()
   if (typeof val === 'number') return String(val)
+  // JotForm dropdowns often return arrays ["value"] or objects {"0":"value"}
+  if (Array.isArray(val)) return val.map(v => str(v)).filter(Boolean).join(', ')
+  if (typeof val === 'object' && val !== null) {
+    const values = Object.values(val as Record<string, unknown>).map(v => str(v)).filter(Boolean)
+    return values.join(', ')
+  }
   return ''
 }
 
