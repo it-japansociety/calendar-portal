@@ -1,15 +1,19 @@
 import { getDB } from '@/lib/cloudflare'
+import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { parseWebhookBody, mapAnswersToEvent } from '@/lib/jotform-parser'
 
-// Receives JotForm webhook POST submissions and upserts them into D1.
-// Configure JotForm: Settings → Integrations → Webhooks
-// URL: https://<your-worker>.workers.dev/api/webhook?token=<WEBHOOK_SECRET>
 export async function POST(request: Request): Promise<Response> {
   const url = new URL(request.url)
 
-  // Validate shared secret passed as query param
+  let expected = ''
+  try {
+    const { env } = await getCloudflareContext()
+    expected = (env as CloudflareEnv & { WEBHOOK_SECRET?: string }).WEBHOOK_SECRET || process.env.WEBHOOK_SECRET || ''
+  } catch {
+    expected = process.env.WEBHOOK_SECRET || ''
+  }
+
   const token = url.searchParams.get('token')
-  const expected = (process.env.WEBHOOK_SECRET as string) || ''
   if (!expected || !timingSafeEqual(token || '', expected)) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }

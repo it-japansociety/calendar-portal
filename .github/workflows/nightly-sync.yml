@@ -14,7 +14,7 @@ jobs:
       - name: Sync JotForm submissions to Cloudflare D1
         run: |
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            https://calendar-portal.workers.dev/api/import \
+            https://calendar.japansociety.org/api/import \
             -H "Authorization: Bearer ${{ secrets.JOTFORM_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{"dry_run": false}')

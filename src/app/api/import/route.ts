@@ -1,23 +1,22 @@
 import { getDB } from '@/lib/cloudflare'
+import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { mapAnswersToEvent } from '@/lib/jotform-parser'
 import type { JotFormAnswers } from '@/lib/jotform-parser'
 
 const JOTFORM_FORM_ID = '252113809267053'
 const BATCH_SIZE = 100
 
-// POST /api/import
-// One-time endpoint to bulk-import historical JotForm submissions into D1.
-// Protected by: Authorization: Bearer <JOTFORM_API_KEY>
-//
-// Body (JSON): { dry_run?: boolean, offset?: number }
-//   dry_run: true  → fetch and parse only, no DB writes (preview mode)
-//   offset:  start paginating from this JotForm submission offset
-//
-// Run with dry_run: true first to verify field mapping before committing.
 export async function POST(request: Request): Promise<Response> {
-  // Auth: bearer token must match the JotForm API key
+  // Read API key from Cloudflare context env (secrets set via Dashboard/wrangler)
+  let apiKey = ''
+  try {
+    const { env } = await getCloudflareContext()
+    apiKey = (env as CloudflareEnv & { JOTFORM_API_KEY?: string }).JOTFORM_API_KEY || process.env.JOTFORM_API_KEY || ''
+  } catch {
+    apiKey = process.env.JOTFORM_API_KEY || ''
+  }
+
   const authHeader = request.headers.get('Authorization') || ''
-  const apiKey = (process.env.JOTFORM_API_KEY as string) || ''
   if (!apiKey || authHeader !== `Bearer ${apiKey}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
