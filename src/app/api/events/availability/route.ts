@@ -56,7 +56,7 @@ export async function GET(request: Request): Promise<Response> {
       .bind(...bindings)
       .all()
 
-    const conflicts = (result.results || []) as AvailabilityConflict[]
+    const conflicts = (result.results || []) as unknown as AvailabilityConflict[]
 
     const response: AvailabilityResult = {
       date,

@@ -73,7 +73,7 @@ export async function GET(request: Request): Promise<Response> {
         .bind(...bindings),
     ])
 
-    const data   = (dataResult.results  || []) as CalendarEvent[]
+    const data   = (dataResult.results  || []) as unknown as CalendarEvent[]
     const total  = ((countResult.results?.[0] as { total: number })?.total) || 0
 
     const response: PaginatedEvents = {
