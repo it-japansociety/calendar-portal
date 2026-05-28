@@ -149,11 +149,11 @@ export default function Home() {
               <NavLink onClick={() => showSection('home')} active={currentSection === 'home'} isDark={isDark}>
                 {t('nav.home')}
               </NavLink>
-              <NavLink onClick={() => showSection('events')} active={currentSection === 'events'} isDark={isDark}>
-                {t('nav.events')}
-              </NavLink>
               <NavLink onClick={() => showSection('form')} active={currentSection === 'form'} isDark={isDark}>
                 {t('nav.form')}
+              </NavLink>
+              <NavLink onClick={() => showSection('events')} active={currentSection === 'events'} isDark={isDark}>
+                {t('nav.events')}
               </NavLink>
               <NavLink onClick={() => showSection('calendar')} active={currentSection === 'calendar'} isDark={isDark}>
                 {t('nav.table')}
@@ -178,24 +178,24 @@ export default function Home() {
             {/* Controls */}
             <div className="flex items-center space-x-3">
               <button
-                onClick={toggleTheme}
-                className={`p-2 rounded-full transition-all duration-300 hover:scale-110 ${
-                  isDark 
-                    ? 'bg-red-900/50 text-red-200 hover:bg-red-800/50' 
-                    : 'bg-red-100 text-red-700 hover:bg-red-200'
-                }`}
-              >
-                {isDark ? '🏮' : '🌙'}
-              </button>
-              <button
                 onClick={toggleLanguage}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 hover:scale-105 ${
-                  isDark 
-                    ? 'bg-red-900/50 text-red-200 hover:bg-red-800/50' 
+                  isDark
+                    ? 'bg-red-900/50 text-red-200 hover:bg-red-800/50'
                     : 'bg-red-100 text-red-700 hover:bg-red-200'
                 }`}
               >
                 {language === 'en' ? '日本語' : 'English'}
+              </button>
+              <button
+                onClick={toggleTheme}
+                className={`p-2 rounded-full transition-all duration-300 hover:scale-110 ${
+                  isDark
+                    ? 'bg-red-900/50 text-red-200 hover:bg-red-800/50'
+                    : 'bg-red-100 text-red-700 hover:bg-red-200'
+                }`}
+              >
+                {isDark ? '🏮' : '🌙'}
               </button>
               
               {/* Mobile menu button */}
@@ -223,11 +223,11 @@ export default function Home() {
                 <MobileNavLink onClick={() => showSection('home')} active={currentSection === 'home'} isDark={isDark}>
                   {t('nav.home')}
                 </MobileNavLink>
-                <MobileNavLink onClick={() => showSection('events')} active={currentSection === 'events'} isDark={isDark}>
-                  {t('nav.events')}
-                </MobileNavLink>
                 <MobileNavLink onClick={() => showSection('form')} active={currentSection === 'form'} isDark={isDark}>
                   {t('nav.form')}
+                </MobileNavLink>
+                <MobileNavLink onClick={() => showSection('events')} active={currentSection === 'events'} isDark={isDark}>
+                  {t('nav.events')}
                 </MobileNavLink>
                 <MobileNavLink onClick={() => showSection('calendar')} active={currentSection === 'calendar'} isDark={isDark}>
                   {t('nav.table')}
@@ -263,18 +263,18 @@ export default function Home() {
             {/* Clean Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
               <CleanCard
-                onClick={() => showSection('events')}
-                title={t('home.card.events')}
-                description={t('home.card.eventsDesc')}
-                isDark={isDark}
-                icon="🔍"
-              />
-              <CleanCard
                 onClick={() => showSection('form')}
                 title={t('home.card.form')}
                 description={t('home.card.formDesc')}
                 isDark={isDark}
                 icon="📋"
+              />
+              <CleanCard
+                onClick={() => showSection('events')}
+                title={t('home.card.events')}
+                description={t('home.card.eventsDesc')}
+                isDark={isDark}
+                icon="🔍"
               />
               <CleanCard
                 onClick={() => showSection('calendar')}
@@ -352,22 +352,28 @@ export default function Home() {
               }`}>
                 {t('calendar.title')}
               </h2>
-              <p className={`text-lg max-w-2xl mx-auto ${
+              <p className={`text-lg max-w-2xl mx-auto mb-3 ${
                 isDark ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                Browse through submitted forms and scheduled events in this interactive table.
+                Browse all submitted event forms in JotForm&apos;s table view.
               </p>
+              <a
+                href="https://www.jotform.com/tables/252113809267053"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-text text-sm underline underline-offset-2 transition-colors ${
+                  isDark ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700'
+                }`}
+              >
+                Open in JotForm ↗
+              </a>
             </div>
-            
-            {/* Larger container that uses more screen width */}
             <div className={`rounded-2xl shadow-xl border p-2 transition-all duration-300 hover:shadow-2xl max-w-[95vw] mx-auto ${
-              isDark 
-                ? 'bg-gray-800 border-red-800/30' 
-                : 'bg-white border-red-200'
+              isDark ? 'bg-gray-800 border-red-800/30' : 'bg-white border-red-200'
             }`}>
               <div className="w-full h-[900px] md:h-[950px] lg:h-[1000px] rounded-xl overflow-hidden">
                 <iframe
-                  src="https://www.jotform.com/tables/252113809267053"
+                  src="https://www.jotform.com/tables/252113809267053?embedMode=iframeembed"
                   className="w-full h-full border-0"
                   title="Japan Society Calendar Table"
                   loading="lazy"

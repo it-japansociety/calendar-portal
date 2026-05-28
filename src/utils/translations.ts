@@ -6,7 +6,7 @@ export const translations: Record<string, Record<string, string>> = {
     "nav.excel": "Weekly Calendar",
     "nav.main": "Main Site ↗",
     "home.title": "Japan Society House Calendar Portal",
-    "home.desc": "Submit forms, view calendars, and manage event submissions — all in one place.",
+    "home.desc": "Submit forms, view calendars, and manage event submissions.",
     "home.card.form": "Submit a Form",
     "home.card.formDesc": "Send your registration or event information through our secure form system.",
     "home.card.table": "View Schedule",
