@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { translations } from '../utils/translations'
-import type { CalendarEvent, AvailabilityConflict, AvailabilityResult, PaginatedEvents } from '../lib/types'
+import type { CalendarEvent, AvailabilityResult, PaginatedEvents } from '../lib/types'
 
 export default function Home() {
   const [currentSection, setCurrentSection] = useState('home')
@@ -20,6 +20,7 @@ export default function Home() {
   })
   const [availQuery, setAvailQuery] = useState({ date: '', start_time: '', end_time: '', location: '' })
   const [availResult, setAvailResult] = useState<AvailabilityResult | null>(null)
+  const [availDayEvents, setAvailDayEvents] = useState<CalendarEvent[]>([])
   const [availLoading, setAvailLoading] = useState(false)
 
   useEffect(() => {
@@ -87,15 +88,24 @@ export default function Home() {
     if (!availQuery.date) return
     setAvailLoading(true)
     setAvailResult(null)
+    setAvailDayEvents([])
     try {
+      // Run both requests in parallel: conflict check + all events for the day
       const params = new URLSearchParams({ date: availQuery.date })
       if (availQuery.start_time) params.set('start_time', availQuery.start_time)
       if (availQuery.end_time)   params.set('end_time',   availQuery.end_time)
       if (availQuery.location)   params.set('location',   availQuery.location)
-      const res = await fetch(`/api/events/availability?${params}`)
-      if (!res.ok) throw new Error('Failed to check availability')
-      const json: AvailabilityResult = await res.json()
-      setAvailResult(json)
+
+      const [availRes, dayRes] = await Promise.all([
+        fetch(`/api/events/availability?${params}`),
+        fetch(`/api/events?date_from=${availQuery.date}&date_to=${availQuery.date}&page_size=200`),
+      ])
+
+      if (availRes.ok) setAvailResult(await availRes.json())
+      if (dayRes.ok) {
+        const dayJson: PaginatedEvents = await dayRes.json()
+        setAvailDayEvents(dayJson.data || [])
+      }
     } catch {
       setAvailResult(null)
     } finally {
@@ -490,7 +500,7 @@ export default function Home() {
                 </button>
                 {(availQuery.date || availQuery.start_time || availQuery.end_time || availQuery.location || availResult) && (
                   <button
-                    onClick={() => { setAvailQuery({ date: '', start_time: '', end_time: '', location: '' }); setAvailResult(null) }}
+                    onClick={() => { setAvailQuery({ date: '', start_time: '', end_time: '', location: '' }); setAvailResult(null); setAvailDayEvents([]) }}
                     className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
                       isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
@@ -500,27 +510,54 @@ export default function Home() {
                 )}
               </div>
 
-              {availResult && (
-                <div className={`mt-4 rounded-xl p-4 border ${
-                  availResult.is_available
-                    ? isDark ? 'bg-green-900/30 border-green-700 text-green-300' : 'bg-green-50 border-green-300 text-green-800'
-                    : isDark ? 'bg-red-900/30 border-red-700 text-red-300'   : 'bg-red-50 border-red-300 text-red-800'
-                }`}>
-                  <p className="font-semibold text-sm mb-2">
-                    {availResult.is_available ? '✓ Available' : `✗ ${availResult.conflicts.length} conflict${availResult.conflicts.length !== 1 ? 's' : ''} found`}
-                  </p>
-                  {availResult.conflicts.length > 0 && (
-                    <div className="space-y-1">
-                      {availResult.conflicts.map((c: AvailabilityConflict) => (
-                        <div key={c.id} className="text-xs flex gap-3 flex-wrap">
-                          <span className="font-medium">{c.event_name}</span>
-                          <span>{c.event_start} – {c.event_end}</span>
-                          {c.location && <span className="opacity-75">{c.location}</span>}
-                          <StatusBadge status={c.status} />
+              {availDayEvents.length > 0 && (
+                <div className="mt-5 space-y-4">
+                  {/* Location availability grid */}
+                  <div>
+                    <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Location Availability{availQuery.start_time && availQuery.end_time ? ` · ${availQuery.start_time}–${availQuery.end_time}` : ' · All Day'}
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                      {['4th Fl Conference Room','3rd Fl Conference Room','AUD','MURSON','YSKY','FOY','GAL','Online','Offsite','A-Level','LC Pond','ATRO','Other'].map(loc => {
+                        const locEvents = availDayEvents.filter(e => e.location === loc && e.status !== 'Cancelled')
+                        const hasConflict = availQuery.start_time && availQuery.end_time
+                          ? locEvents.some(e => e.event_start < availQuery.end_time && e.event_end > availQuery.start_time)
+                          : locEvents.length > 0
+                        const isFree = locEvents.length === 0
+                        return (
+                          <div key={loc} className={`rounded-lg p-2 border text-xs ${
+                            isFree
+                              ? isDark ? 'bg-green-900/30 border-green-700/50 text-green-300' : 'bg-green-50 border-green-200 text-green-800'
+                              : hasConflict
+                                ? isDark ? 'bg-red-900/30 border-red-700/50 text-red-300' : 'bg-red-50 border-red-200 text-red-800'
+                                : isDark ? 'bg-yellow-900/30 border-yellow-700/50 text-yellow-300' : 'bg-yellow-50 border-yellow-200 text-yellow-800'
+                          }`}>
+                            <div className="font-semibold truncate">{loc}</div>
+                            <div className="mt-0.5 opacity-80">
+                              {isFree ? '✓ Free' : hasConflict ? `✗ Conflict` : `${locEvents.length} event${locEvents.length !== 1 ? 's' : ''}`}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Events scheduled that day */}
+                  <div>
+                    <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      All Events That Day ({availDayEvents.length})
+                    </p>
+                    <div className={`rounded-xl border divide-y overflow-hidden ${isDark ? 'border-gray-700 divide-gray-700' : 'border-gray-200 divide-gray-100'}`}>
+                      {availDayEvents.map(ev => (
+                        <div key={ev.id} className={`flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} ${ev.status === 'Cancelled' ? 'opacity-40 line-through' : ''}`}>
+                          <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{ev.event_name}</span>
+                          {ev.location && <span className="opacity-70">{ev.location}</span>}
+                          <span>{ev.event_start}{ev.event_end ? `–${ev.event_end}` : ''}</span>
+                          <StatusBadge status={ev.status} />
                         </div>
                       ))}
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
             </div>
