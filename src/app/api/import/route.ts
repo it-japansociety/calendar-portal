@@ -70,7 +70,10 @@ async function handleImport(request: Request): Promise<Response> {
 
   try {
     while (true) {
-      const dateFilter = sinceDate ? `&filter[created_at:gt]=${sinceDate}+00:00:00` : ''
+      // sinceDate may be "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS" — encode spaces as +
+      const dateFilter = sinceDate
+        ? `&filter[created_at:gt]=${encodeURIComponent(sinceDate).replace(/%20/g, '+')}`
+        : ''
       const res = await fetch(
         `https://api.jotform.com/form/${JOTFORM_FORM_ID}/submissions` +
         `?apiKey=${apiKey}&limit=${limit}&offset=${offset}&orderby=created_at&direction=ASC${dateFilter}`

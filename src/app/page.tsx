@@ -155,11 +155,11 @@ export default function Home() {
               <NavLink onClick={() => showSection('events')} active={currentSection === 'events'} isDark={isDark}>
                 {t('nav.events')}
               </NavLink>
-              <NavLink onClick={() => showSection('calendar')} active={currentSection === 'calendar'} isDark={isDark}>
-                {t('nav.table')}
-              </NavLink>
               <NavLink onClick={() => showSection('excel')} active={currentSection === 'excel'} isDark={isDark}>
                 {t('nav.excel')}
+              </NavLink>
+              <NavLink onClick={() => showSection('calendar')} active={currentSection === 'calendar'} isDark={isDark}>
+                {t('nav.table')}
               </NavLink>
               <a
                 href="https://apps.japansociety.org"
@@ -229,11 +229,11 @@ export default function Home() {
                 <MobileNavLink onClick={() => showSection('events')} active={currentSection === 'events'} isDark={isDark}>
                   {t('nav.events')}
                 </MobileNavLink>
-                <MobileNavLink onClick={() => showSection('calendar')} active={currentSection === 'calendar'} isDark={isDark}>
-                  {t('nav.table')}
-                </MobileNavLink>
                 <MobileNavLink onClick={() => showSection('excel')} active={currentSection === 'excel'} isDark={isDark}>
                   {t('nav.excel')}
+                </MobileNavLink>
+                <MobileNavLink onClick={() => showSection('calendar')} active={currentSection === 'calendar'} isDark={isDark}>
+                  {t('nav.table')}
                 </MobileNavLink>
               </div>
             </div>
@@ -277,18 +277,18 @@ export default function Home() {
                 icon="🔍"
               />
               <CleanCard
-                onClick={() => showSection('calendar')}
-                title={t('home.card.table')}
-                description={t('home.card.tableDesc')}
-                isDark={isDark}
-                icon="📅"
-              />
-              <CleanCard
                 onClick={() => showSection('excel')}
                 title={t('home.card.excel')}
                 description={t('home.card.excelDesc')}
                 isDark={isDark}
                 icon="📊"
+              />
+              <CleanCard
+                onClick={() => showSection('calendar')}
+                title={t('home.card.table')}
+                description={t('home.card.tableDesc')}
+                isDark={isDark}
+                icon="📅"
               />
               <CleanCard
                 onClick={() => window.open('https://japan-society.gogenuity.com/help_center', '_blank')}
