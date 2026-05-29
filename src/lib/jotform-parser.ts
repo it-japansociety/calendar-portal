@@ -59,16 +59,25 @@ export function parseJotFormDate(raw: unknown): string {
 // ── Time normalisation ────────────────────────────────────────────────────────
 
 // Converts JotForm time formats to HH:MM (24h) for SQL string comparisons.
-// Handles:
+// Handles the control_time answer object…
+//   { timeInput: "10:00", hourSelect: "10", minuteSelect: "00", ampm: "AM" }
+// …older/alternate object shapes…
 //   { hours: "2", minutes: "30", ampm: "pm" }
-//   "2:30 PM"  "14:30"
+// …and plain strings: "2:30 PM", "14:30".
+// An unfilled time field is absent from the answers (raw is undefined) -> "".
 export function parseJotFormTime(raw: unknown): string {
   if (!raw) return ''
 
   if (typeof raw === 'object' && raw !== null) {
     const t = raw as Record<string, string>
-    let h = parseInt(t.hours || '0', 10)
-    const m = parseInt(t.minutes || '0', 10)
+    // JotForm's time picker uses hourSelect/minuteSelect; fall back to other
+    // shapes (hour/hours, minutes/min) and finally the "HH:MM" timeInput string.
+    const hourRaw = t.hourSelect ?? t.hour ?? t.hours ?? t.timeInput?.split(':')[0]
+    const minRaw  = t.minuteSelect ?? t.minutes ?? t.min ?? t.timeInput?.split(':')[1]
+    let h = parseInt(hourRaw ?? '', 10)
+    let m = parseInt(minRaw ?? '', 10)
+    if (Number.isNaN(h)) return ''     // blank/empty time field
+    if (Number.isNaN(m)) m = 0
     const ampm = (t.ampm || '').toLowerCase()
     if (ampm === 'pm' && h < 12) h += 12
     if (ampm === 'am' && h === 12) h = 0

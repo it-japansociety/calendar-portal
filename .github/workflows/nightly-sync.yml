@@ -4,16 +4,30 @@ on:
   schedule:
     - cron: '*/15 * * * *'  # Every 15 minutes
   workflow_dispatch:          # allows manual trigger from the GitHub Actions tab
+    inputs:
+      full_backfill:
+        description: 'Re-import ALL submissions (no date filter). Use to backfill/repair every record.'
+        type: boolean
+        default: false
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Sync JotForm submissions to Cloudflare D1
         run: |
-          SINCE=$(date -u -d "2 hours ago" +"%Y-%m-%d %H:%M:%S")
+          # Full backfill (manual): omit since_date so every submission is re-imported
+          # (INSERT OR REPLACE repairs existing rows). Otherwise: only the last 2 hours.
+          if [ "${{ inputs.full_backfill }}" = "true" ]; then
+            PAYLOAD='{"dry_run": false}'
+            echo "Running FULL backfill (all submissions)"
+          else
+            SINCE=$(date -u -d "2 hours ago" +"%Y-%m-%d %H:%M:%S")
+            PAYLOAD="{\"dry_run\": false, \"since_date\": \"$SINCE\"}"
+            echo "Running incremental sync since $SINCE"
+          fi
           # CF-Access-Client-Id / -Secret authenticate the request to the
           # Cloudflare Access (Zero Trust) service token, so the automated
           # job is allowed through SSO. Authorization: Bearer is the JotForm
@@ -24,7 +38,7 @@ jobs:
             -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
             -H "Authorization: Bearer ${{ secrets.JOTFORM_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "{\"dry_run\": false, \"since_date\": \"$SINCE\"}")
+            -d "$PAYLOAD")
 
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | head -n-1)

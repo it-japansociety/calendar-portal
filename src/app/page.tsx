@@ -4,6 +4,79 @@ import { useState, useEffect, useCallback } from 'react'
 import { translations } from '../utils/translations'
 import type { CalendarEvent, AvailabilityResult, PaginatedEvents } from '../lib/types'
 
+// Canonical bookable rooms. JotForm's location field is free-form and very
+// inconsistent — a single booking may list multiple rooms, comma-separated, using
+// abbreviations ("AUD, MUR, FOY"), full names ("Auditorium, Murasae Room, Foyer"),
+// or misspellings ("Murase Room"). Each room lists the normalized alias tokens that
+// should count as that room. `prefixes` catches tokens with trailing notes
+// (e.g. "Foyer contingent on PA").
+const ROOMS: { name: string; aliases: string[]; prefixes?: string[] }[] = [
+  { name: 'Auditorium',             aliases: ['aud', 'auditorium'], prefixes: ['auditorium'] },
+  { name: 'Murasae Room',           aliases: ['mur', 'murasae room', 'murase room', 'murasae', 'murase'], prefixes: ['murasae', 'murase'] },
+  { name: 'Foyer',                  aliases: ['foy', 'foyer'], prefixes: ['foyer'] },
+  { name: 'Sony Room',              aliases: ['sony', 'sony room'], prefixes: ['sony room'] },
+  { name: 'Sky Room',               aliases: ['sky', 'sky room'], prefixes: ['sky room'] },
+  { name: 'Gallery',                aliases: ['gal', 'gallery', 'south gallery'], prefixes: ['gallery'] },
+  { name: 'A-Level',                aliases: ['a-level', 'a level', 'alevel'] },
+  { name: 'Pond',                   aliases: ['pond', 'lc pond'], prefixes: ['pond'] },
+  { name: 'Atrium',                 aliases: ['atr', 'atro', 'atrium'], prefixes: ['atrium'] },
+  { name: '3rd Fl Conference Room', aliases: ['3rd fl conference room', '3rd floor conference room'], prefixes: ['3rd fl conference', '3rd floor conference'] },
+  { name: '4th Fl Conference Room', aliases: ['4th fl conference room', '4th floor conference room'], prefixes: ['4th fl conference', '4th floor conference'] },
+  { name: 'Language Center',        aliases: ['lc'], prefixes: ['language center'] },
+  { name: 'Online',                 aliases: ['online'], prefixes: ['online'] },
+  { name: 'Offsite',                aliases: ['offsite'], prefixes: ['offsite'] },
+]
+const ROOM_NAMES = ROOMS.map(r => r.name)
+
+// Lowercase, trim, collapse whitespace, and tighten spaces around hyphens
+// ("A- Level" -> "a-level") so alias matching is robust to formatting noise.
+function normalizeLoc(s: string): string {
+  return s.toLowerCase().trim().replace(/\s*-\s*/g, '-').replace(/\s+/g, ' ')
+}
+
+// Set of canonical room names referenced by a raw (possibly multi-room) location string.
+function roomsInLocation(raw: string | null | undefined): Set<string> {
+  const found = new Set<string>()
+  if (!raw) return found
+  const tokens = raw.split(',').map(normalizeLoc).filter(Boolean)
+  for (const room of ROOMS) {
+    if (tokens.some(t => room.aliases.includes(t) || (room.prefixes?.some(p => t.startsWith(p)) ?? false))) {
+      found.add(room.name)
+    }
+  }
+  return found
+}
+
+// A booking with no usable time range (blank, equal, or start >= end — e.g. the
+// "12:00-12:00" all-day placeholder some submissions default to) occupies the whole day.
+function isAllDay(start?: string | null, end?: string | null): boolean {
+  return !start || !end || start >= end
+}
+
+// Whether an event occupies a requested [start, end) window. All-day bookings always do;
+// otherwise two intervals overlap when start < otherEnd && end > otherStart.
+function eventOccupies(ev: CalendarEvent, start: string, end: string): boolean {
+  if (isAllDay(ev.event_start, ev.event_end)) return true
+  return ev.event_start < end && ev.event_end > start
+}
+
+// Convert a 24h "HH:MM" string to 12-hour "h:MM AM/PM" for display.
+function formatTime12(t?: string | null): string {
+  if (!t) return ''
+  const m = /^(\d{1,2}):(\d{2})/.exec(t)
+  if (!m) return t
+  let h = parseInt(m[1], 10)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  h = h % 12
+  if (h === 0) h = 12
+  return `${h}:${m[2]} ${ampm}`
+}
+
+// Render a booking's time range, collapsing all-day placeholders to "All day".
+function formatTimeRange(start?: string | null, end?: string | null): string {
+  return isAllDay(start, end) ? 'All day' : `${formatTime12(start)}–${formatTime12(end)}`
+}
+
 export default function Home() {
   const [currentSection, setCurrentSection] = useState('home')
   const [isDark, setIsDark] = useState(false)
@@ -486,7 +559,7 @@ export default function Home() {
                     className={`w-full rounded-lg border px-3 py-2 text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                   >
                     <option value="">All Locations</option>
-                    {['4th Fl Conference Room','3rd Fl Conference Room','AUD','MURSON','YSKY','FOY','GAL','Online','Offsite','A-Level','LC Pond','ATRO','Other'].map(loc => (
+                    {ROOM_NAMES.map(loc => (
                       <option key={loc} value={loc}>{loc}</option>
                     ))}
                   </select>
@@ -524,23 +597,28 @@ export default function Home() {
                       Location Availability{availQuery.start_time && availQuery.end_time ? ` · ${availQuery.start_time}–${availQuery.end_time}` : ' · All Day'}
                     </p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                      {['4th Fl Conference Room','3rd Fl Conference Room','AUD','MURSON','YSKY','FOY','GAL','Online','Offsite','A-Level','LC Pond','ATRO','Other'].map(loc => {
-                        const locEvents = availDayEvents.filter(e => e.location === loc && e.status !== 'Cancelled')
-                        const hasConflict = availQuery.start_time && availQuery.end_time
-                          ? locEvents.some(e => e.event_start < availQuery.end_time && e.event_end > availQuery.start_time)
-                          : locEvents.length > 0
-                        const isFree = locEvents.length === 0
+                      {(availQuery.location ? [availQuery.location] : ROOM_NAMES).map(room => {
+                        const start = availQuery.start_time, end = availQuery.end_time
+                        const hasWindow = !!(start && end)
+                        const roomEvents = availDayEvents.filter(
+                          e => e.status !== 'Cancelled' && roomsInLocation(e.location).has(room)
+                        )
+                        const occupying = hasWindow
+                          ? roomEvents.filter(e => eventOccupies(e, start, end))
+                          : roomEvents
+                        const isFree = occupying.length === 0
+                        const isConflict = hasWindow && !isFree
                         return (
-                          <div key={loc} className={`rounded-lg p-2 border text-xs ${
+                          <div key={room} className={`rounded-lg p-2 border text-xs ${
                             isFree
                               ? isDark ? 'bg-green-900/30 border-green-700/50 text-green-300' : 'bg-green-50 border-green-200 text-green-800'
-                              : hasConflict
+                              : isConflict
                                 ? isDark ? 'bg-red-900/30 border-red-700/50 text-red-300' : 'bg-red-50 border-red-200 text-red-800'
                                 : isDark ? 'bg-yellow-900/30 border-yellow-700/50 text-yellow-300' : 'bg-yellow-50 border-yellow-200 text-yellow-800'
                           }`}>
-                            <div className="font-semibold truncate">{loc}</div>
+                            <div className="font-semibold truncate">{room}</div>
                             <div className="mt-0.5 opacity-80">
-                              {isFree ? '✓ Free' : hasConflict ? `✗ Conflict` : `${locEvents.length} event${locEvents.length !== 1 ? 's' : ''}`}
+                              {isFree ? '✓ Free' : isConflict ? '✗ Conflict' : `${occupying.length} event${occupying.length !== 1 ? 's' : ''}`}
                             </div>
                           </div>
                         )
@@ -558,7 +636,7 @@ export default function Home() {
                         <div key={ev.id} className={`flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} ${ev.status === 'Cancelled' ? 'opacity-40 line-through' : ''}`}>
                           <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{ev.event_name}</span>
                           {ev.location && <span className="opacity-70">{ev.location}</span>}
-                          <span>{ev.event_start}{ev.event_end ? `–${ev.event_end}` : ''}</span>
+                          <span>{formatTimeRange(ev.event_start, ev.event_end)}</span>
                           <StatusBadge status={ev.status} />
                         </div>
                       ))}
@@ -697,13 +775,13 @@ export default function Home() {
                             {ev.department || '—'}
                           </td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                            {ev.event_start}
+                            {formatTime12(ev.event_start) || '—'}
                           </td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                            {ev.event_end}
+                            {formatTime12(ev.event_end) || '—'}
                           </td>
                           <td className={`px-4 py-3 whitespace-nowrap text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {ev.hold_start ? `${ev.hold_start}–${ev.hold_end}` : '—'}
+                            {ev.hold_start ? `${formatTime12(ev.hold_start)}–${formatTime12(ev.hold_end)}` : '—'}
                           </td>
                           <td className={`px-4 py-3 whitespace-nowrap text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                             {ev.contact_name}
