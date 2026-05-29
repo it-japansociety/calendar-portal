@@ -60,6 +60,16 @@ function eventOccupies(ev: CalendarEvent, start: string, end: string): boolean {
   return ev.event_start < end && ev.event_end > start
 }
 
+// Booking-status buckets for availability. Only a Confirmed booking firmly occupies
+// a space; Pending/Contingent/TBD are tentative (contested, not yet decided);
+// Released and Cancelled are ignored (and archived events are filtered out upstream).
+function isConfirmedStatus(s?: string | null): boolean {
+  return (s || '').toLowerCase().trim() === 'confirmed'
+}
+function isTentativeStatus(s?: string | null): boolean {
+  return ['pending', 'contingent', 'tbd'].includes((s || '').toLowerCase().trim())
+}
+
 // Convert a 24h "HH:MM" string to 12-hour "h:MM AM/PM" for display.
 function formatTime12(t?: string | null): string {
   if (!t) return ''
@@ -593,32 +603,40 @@ export default function Home() {
                 <div className="mt-5 space-y-4">
                   {/* Location availability grid */}
                   <div>
-                    <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Location Availability{availQuery.start_time && availQuery.end_time ? ` · ${availQuery.start_time}–${availQuery.end_time}` : ' · All Day'}
+                    <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Location Availability{availQuery.start_time && availQuery.end_time ? ` · ${formatTime12(availQuery.start_time)}–${formatTime12(availQuery.end_time)}` : ' · All Day'}
+                    </p>
+                    <p className={`text-[11px] mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                      <span className="text-green-600">✓ Free</span> · <span className="text-red-600">✗ Booked (Confirmed)</span> · <span className="text-amber-600">⚠ Tentative (Pending/Contingent/TBD)</span>
                     </p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                       {(availQuery.location ? [availQuery.location] : ROOM_NAMES).map(room => {
                         const start = availQuery.start_time, end = availQuery.end_time
                         const hasWindow = !!(start && end)
-                        const roomEvents = availDayEvents.filter(
-                          e => e.status !== 'Cancelled' && roomsInLocation(e.location).has(room)
+                        // Events in this room that fall within the requested window (or any
+                        // event that day when no window is given).
+                        const roomEvents = availDayEvents.filter(e =>
+                          roomsInLocation(e.location).has(room) &&
+                          (!hasWindow || eventOccupies(e, start, end))
                         )
-                        const occupying = hasWindow
-                          ? roomEvents.filter(e => eventOccupies(e, start, end))
-                          : roomEvents
-                        const isFree = occupying.length === 0
-                        const isConflict = hasWindow && !isFree
+                        const confirmed = roomEvents.filter(e => isConfirmedStatus(e.status))
+                        const tentative = roomEvents.filter(e => isTentativeStatus(e.status))
+                        const state = confirmed.length ? 'booked' : tentative.length ? 'tentative' : 'free'
                         return (
                           <div key={room} className={`rounded-lg p-2 border text-xs ${
-                            isFree
+                            state === 'free'
                               ? isDark ? 'bg-green-900/30 border-green-700/50 text-green-300' : 'bg-green-50 border-green-200 text-green-800'
-                              : isConflict
+                              : state === 'booked'
                                 ? isDark ? 'bg-red-900/30 border-red-700/50 text-red-300' : 'bg-red-50 border-red-200 text-red-800'
-                                : isDark ? 'bg-yellow-900/30 border-yellow-700/50 text-yellow-300' : 'bg-yellow-50 border-yellow-200 text-yellow-800'
+                                : isDark ? 'bg-amber-900/30 border-amber-700/50 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-800'
                           }`}>
                             <div className="font-semibold truncate">{room}</div>
                             <div className="mt-0.5 opacity-80">
-                              {isFree ? '✓ Free' : isConflict ? '✗ Conflict' : `${occupying.length} event${occupying.length !== 1 ? 's' : ''}`}
+                              {state === 'free'
+                                ? '✓ Free'
+                                : state === 'booked'
+                                  ? `✗ Booked · ${confirmed.length}`
+                                  : `⚠ Tentative · ${tentative.length}`}
                             </div>
                           </div>
                         )
