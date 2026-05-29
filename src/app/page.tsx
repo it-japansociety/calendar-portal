@@ -69,6 +69,9 @@ function isConfirmedStatus(s?: string | null): boolean {
 function isTentativeStatus(s?: string | null): boolean {
   return ['pending', 'contingent', 'tbd'].includes((s || '').toLowerCase().trim())
 }
+function isReleasedStatus(s?: string | null): boolean {
+  return (s || '').toLowerCase().trim() === 'released'
+}
 
 // Convert a 24h "HH:MM" string to 12-hour "h:MM AM/PM" for display.
 function formatTime12(t?: string | null): string {
@@ -644,13 +647,16 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Events scheduled that day */}
+                  {/* Events scheduled that day (Released events are omitted) */}
+                  {(() => {
+                    const dayEvents = availDayEvents.filter(e => !isReleasedStatus(e.status))
+                    return (
                   <div>
                     <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      All Events That Day ({availDayEvents.length})
+                      All Events That Day ({dayEvents.length})
                     </p>
                     <div className={`rounded-xl border divide-y overflow-hidden ${isDark ? 'border-gray-700 divide-gray-700' : 'border-gray-200 divide-gray-100'}`}>
-                      {availDayEvents.map(ev => (
+                      {dayEvents.map(ev => (
                         <div key={ev.id} className={`flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} ${ev.status === 'Cancelled' ? 'opacity-40 line-through' : ''}`}>
                           <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{ev.event_name}</span>
                           {ev.location && <span className="opacity-70">{ev.location}</span>}
@@ -660,6 +666,8 @@ export default function Home() {
                       ))}
                     </div>
                   </div>
+                    )
+                  })()}
                 </div>
               )}
             </div>
