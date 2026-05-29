@@ -14,8 +14,14 @@ jobs:
       - name: Sync JotForm submissions to Cloudflare D1
         run: |
           SINCE=$(date -u -d "2 hours ago" +"%Y-%m-%d %H:%M:%S")
+          # CF-Access-Client-Id / -Secret authenticate the request to the
+          # Cloudflare Access (Zero Trust) service token, so the automated
+          # job is allowed through SSO. Authorization: Bearer is the JotForm
+          # API key the import route uses to call the JotForm API.
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             https://calendar-portal.japan-society-account.workers.dev/api/import \
+            -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
+            -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
             -H "Authorization: Bearer ${{ secrets.JOTFORM_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d "{\"dry_run\": false, \"since_date\": \"$SINCE\"}")
