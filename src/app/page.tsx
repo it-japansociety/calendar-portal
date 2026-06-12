@@ -83,7 +83,8 @@ export default function Home() {
   const [eventsFilters, setEventsFilters] = useState({
     date_from: '', date_to: '', status: '', department: '',
     locations: [] as string[],
-    search: '', include_archived: false, page: 1,
+    search: '', include_archived: false, include_released: false,
+    sort: '', dir: 'asc' as 'asc' | 'desc', page: 1,
   })
   const [availQuery, setAvailQuery] = useState({
     date: '', end_date: '', start_time: '', end_time: '',
@@ -131,17 +132,25 @@ export default function Home() {
     setMobileMenuOpen(false)
   }, [])
 
+  // Shared between the table fetch and the CSV export so both honour the same filters
+  const buildEventsParams = useCallback(() => {
+    const params = new URLSearchParams()
+    if (eventsFilters.date_from) params.set('date_from', eventsFilters.date_from)
+    if (eventsFilters.date_to)   params.set('date_to',   eventsFilters.date_to)
+    if (eventsFilters.status)    params.set('status',    eventsFilters.status)
+    if (eventsFilters.department) params.set('department', eventsFilters.department)
+    if (eventsFilters.locations.length) params.set('locations', eventsFilters.locations.join(','))
+    if (eventsFilters.search)    params.set('search',    eventsFilters.search)
+    if (eventsFilters.include_archived) params.set('include_archived', 'true')
+    if (eventsFilters.include_released) params.set('include_released', 'true')
+    if (eventsFilters.sort) { params.set('sort', eventsFilters.sort); params.set('dir', eventsFilters.dir) }
+    return params
+  }, [eventsFilters])
+
   const fetchEvents = useCallback(async () => {
     setEventsLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (eventsFilters.date_from) params.set('date_from', eventsFilters.date_from)
-      if (eventsFilters.date_to)   params.set('date_to',   eventsFilters.date_to)
-      if (eventsFilters.status)    params.set('status',    eventsFilters.status)
-      if (eventsFilters.department) params.set('department', eventsFilters.department)
-      if (eventsFilters.locations.length) params.set('locations', eventsFilters.locations.join(','))
-      if (eventsFilters.search)    params.set('search',    eventsFilters.search)
-      if (eventsFilters.include_archived) params.set('include_archived', 'true')
+      const params = buildEventsParams()
       params.set('page', String(eventsFilters.page))
       const res = await fetch(`/api/events?${params}`)
       if (!res.ok) throw new Error('Failed to fetch events')
@@ -153,7 +162,19 @@ export default function Home() {
     } finally {
       setEventsLoading(false)
     }
-  }, [eventsFilters])
+  }, [buildEventsParams, eventsFilters.page])
+
+  // Downloads every row matching the current filters as a CSV (opens in Excel)
+  const exportCSV = useCallback(() => {
+    const params = buildEventsParams()
+    params.set('format', 'csv')
+    const a = document.createElement('a')
+    a.href = `/api/events?${params}`
+    a.download = 'events-export.csv'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }, [buildEventsParams])
 
   const checkAvailability = useCallback(async () => {
     if (!availQuery.date) return
@@ -744,7 +765,7 @@ export default function Home() {
               <div className="mb-3 flex gap-2">
                 <input
                   type="text"
-                  placeholder="Search events by name…"
+                  placeholder="Search by event, location, department, or contact…"
                   value={eventsFilters.search}
                   onChange={e => setEventsFilters(f => ({ ...f, search: e.target.value, page: 1 }))}
                   className={`flex-1 rounded-lg border px-3 py-2 text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
@@ -757,6 +778,15 @@ export default function Home() {
                     Clear
                   </button>
                 )}
+                <button
+                  onClick={exportCSV}
+                  title="Download the current filtered results as a CSV file (opens in Excel)"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
+                    isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  ⬇ Export CSV
+                </button>
               </div>
               <div className="mb-3">
                 <label className={`block text-xs font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -813,14 +843,25 @@ export default function Home() {
                     ))}
                   </select>
                 </div>
-                <div className="flex items-center gap-2 pt-4">
-                  <input type="checkbox" id="inclArchived" checked={eventsFilters.include_archived}
-                    onChange={e => setEventsFilters(f => ({ ...f, include_archived: e.target.checked, page: 1 }))}
-                    className="accent-red-600"
-                  />
-                  <label htmlFor="inclArchived" className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                    Show archived
-                  </label>
+                <div className="flex flex-col gap-1 pt-1">
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" id="inclArchived" checked={eventsFilters.include_archived}
+                      onChange={e => setEventsFilters(f => ({ ...f, include_archived: e.target.checked, page: 1 }))}
+                      className="accent-red-600"
+                    />
+                    <label htmlFor="inclArchived" className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      Show archived
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" id="inclReleased" checked={eventsFilters.include_released}
+                      onChange={e => setEventsFilters(f => ({ ...f, include_released: e.target.checked, page: 1 }))}
+                      className="accent-red-600"
+                    />
+                    <label htmlFor="inclReleased" className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      Show released
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -841,8 +882,36 @@ export default function Home() {
                   <table className="w-full text-sm min-w-[900px]">
                     <thead>
                       <tr className={isDark ? 'bg-gray-700/60' : 'bg-gray-50'}>
-                        {['Date','Day','Event Name','Location','Dept','Start','End','Hold','Contact','Status'].map(h => (
-                          <th key={h} className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>{h}</th>
+                        {([
+                          { label: 'Date',       key: 'event_date' },
+                          { label: 'Day',        key: '' },
+                          { label: 'Event Name', key: 'event_name' },
+                          { label: 'Location',   key: 'location' },
+                          { label: 'Dept',       key: 'department' },
+                          { label: 'Start',      key: 'event_start' },
+                          { label: 'End',        key: 'event_end' },
+                          { label: 'Hold',       key: '' },
+                          { label: 'Contact',    key: 'contact_name' },
+                          { label: 'Status',     key: 'status' },
+                        ] as { label: string; key: string }[]).map(col => (
+                          <th
+                            key={col.label}
+                            onClick={col.key ? () => setEventsFilters(f => ({
+                              ...f,
+                              sort: col.key,
+                              dir: f.sort === col.key && f.dir === 'asc' ? 'desc' : 'asc',
+                              page: 1,
+                            })) : undefined}
+                            title={col.key ? 'Click to sort' : undefined}
+                            className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap select-none ${
+                              isDark ? 'text-gray-300' : 'text-gray-500'
+                            } ${col.key ? 'cursor-pointer hover:text-red-500' : ''} ${
+                              eventsFilters.sort === col.key && col.key ? 'text-red-600 dark:text-red-400' : ''
+                            }`}
+                          >
+                            {col.label}
+                            {eventsFilters.sort === col.key && col.key ? (eventsFilters.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                          </th>
                         ))}
                       </tr>
                     </thead>
