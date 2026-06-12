@@ -3,7 +3,7 @@ name: Calendar Sync
 on:
   schedule:
     - cron: '*/15 * * * *'  # Incremental sync every 15 minutes (new + edited submissions)
-    - cron: '7 5 * * *'     # Daily reconcile at 05:07 UTC (removes deleted submissions)
+    - cron: '7 5 * * *'     # Daily reconcile at 05:07 UTC (archives rows no longer active in JotForm)
   workflow_dispatch:          # allows manual trigger from the GitHub Actions tab
     inputs:
       full_backfill:
@@ -11,7 +11,7 @@ on:
         type: boolean
         default: false
       reconcile:
-        description: 'Remove D1 rows whose submission was deleted in JotForm.'
+        description: 'Archive D1 rows whose submission is no longer active in JotForm (trashed/archived there). Rows are kept for historical reference.'
         type: boolean
         default: false
 
@@ -24,14 +24,15 @@ jobs:
       - name: Sync JotForm submissions to Cloudflare D1
         run: |
           # Three modes:
-          #  - reconcile (daily cron or manual): delete D1 rows missing from JotForm
+          #  - reconcile (daily cron or manual): archive D1 rows whose submission is
+          #    no longer active in JotForm — rows are kept for historical reference
           #  - full backfill (manual): re-import every submission to repair all records
           #  - incremental (default, every 15 min): only submissions created OR EDITED
           #    in the last 2 hours; the import upserts rows in place, so a sync never
           #    rewrites the whole table
           if [ "${{ github.event.schedule }}" = "7 5 * * *" ] || [ "${{ inputs.reconcile }}" = "true" ]; then
             PAYLOAD='{"dry_run": false, "reconcile": true}'
-            echo "Running RECONCILE (delete rows removed from JotForm)"
+            echo "Running RECONCILE (archive rows no longer active in JotForm)"
           elif [ "${{ inputs.full_backfill }}" = "true" ]; then
             PAYLOAD='{"dry_run": false}'
             echo "Running FULL backfill (all submissions)"

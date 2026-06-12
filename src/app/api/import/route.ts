@@ -7,7 +7,7 @@ const BATCH_SIZE = 100
 
 type JotFormSubmission = {
   id: string
-  status?: string       // ACTIVE | DELETED (trashed)
+  status?: string       // ACTIVE | DELETED (JotForm reports trashed/archived submissions as DELETED)
   created_at?: string   // "YYYY-MM-DD HH:MM:SS"
   updated_at?: string | null
   answers: JotFormAnswers
@@ -85,7 +85,7 @@ async function handleImport(request: Request): Promise<Response> {
   let totalFetched = 0
   let upserted = 0
   let skipped = 0
-  let deleted = 0
+  let archivedInactive = 0
   let offset = startOffset
   const limit = 100
 
@@ -124,20 +124,22 @@ async function handleImport(request: Request): Promise<Response> {
         : submissions
       skipped += submissions.length - inWindow.length
 
-      // Submissions moved to JotForm's trash come back with status DELETED —
-      // remove them from D1 rather than upserting stale data.
-      const trashed = inWindow.filter(s => s.status === 'DELETED')
-      const active  = inWindow.filter(s => s.status !== 'DELETED')
+      // Submissions no longer active in JotForm (trashed or archived there — the API
+      // reports both as status DELETED) are kept in D1 for historical reference:
+      // marked archived, never removed.
+      const inactive = inWindow.filter(s => s.status === 'DELETED')
+      const active   = inWindow.filter(s => s.status !== 'DELETED')
 
       if (!dryRun && db) {
-        if (trashed.length > 0) {
-          for (let i = 0; i < trashed.length; i += 50) {
-            const chunk = trashed.slice(i, i + 50)
-            await db.prepare(
-              `DELETE FROM events WHERE jotform_id IN (${chunk.map(() => '?').join(', ')})`
-            ).bind(...chunk.map(s => s.id)).run()
+        if (inactive.length > 0) {
+          for (let i = 0; i < inactive.length; i += 50) {
+            const chunk = inactive.slice(i, i + 50)
+            await db.prepare(`
+              UPDATE events SET is_archived = 1, archived_at = datetime('now')
+              WHERE jotform_id IN (${chunk.map(() => '?').join(', ')}) AND is_archived = 0
+            `).bind(...chunk.map(s => s.id)).run()
           }
-          deleted += trashed.length
+          archivedInactive += inactive.length
         }
 
         // Upsert in batches using D1's batch() for efficiency. ON CONFLICT updates
@@ -191,7 +193,7 @@ async function handleImport(request: Request): Promise<Response> {
       } else {
         // dry_run: count what would be written
         upserted += active.length
-        deleted += trashed.length
+        archivedInactive += inactive.length
       }
 
       if (submissions.length < limit) break
@@ -200,7 +202,7 @@ async function handleImport(request: Request): Promise<Response> {
   } catch (err) {
     console.error('Import error', err)
     return Response.json(
-      { error: String(err), total_fetched: totalFetched, upserted, skipped, deleted },
+      { error: String(err), total_fetched: totalFetched, upserted, skipped, archived_inactive: archivedInactive },
       { status: 500 }
     )
   }
@@ -211,15 +213,16 @@ async function handleImport(request: Request): Promise<Response> {
     total_fetched: totalFetched,
     upserted,
     skipped,
-    deleted,
+    archived_inactive: archivedInactive,
     message: dryRun
-      ? `Dry run complete. Would have upserted ${upserted} and deleted ${deleted}.`
+      ? `Dry run complete. Would have upserted ${upserted} and archived ${archivedInactive} inactive.`
       : `Import complete.`,
   })
 }
 
-// Fetch every submission ID from JotForm and delete D1 rows that no longer exist
-// there (covers permanent deletions that never appear in incremental syncs).
+// Fetch every active submission ID from JotForm and ARCHIVE D1 rows that no longer
+// appear there (covers removals that never show up in incremental syncs). Rows are
+// kept for historical reference — never deleted from D1.
 async function reconcile(apiKey: string, db: D1Database | undefined, dryRun: boolean): Promise<Response> {
   const remoteIds = new Set<string>()
   let offset = 0
@@ -243,27 +246,30 @@ async function reconcile(apiKey: string, db: D1Database | undefined, dryRun: boo
   }
 
   // Safety: an empty remote list almost certainly means an API problem,
-  // not a form with zero submissions — never wipe the table on that.
+  // not a form with zero submissions — never mass-archive on that.
   if (remoteIds.size === 0) {
     return Response.json({ error: 'Reconcile aborted: JotForm returned no submissions' }, { status: 502 })
   }
 
   if (!db) {
-    return Response.json({ reconcile: true, dry_run: dryRun, remote_count: remoteIds.size, deleted: 0 })
+    return Response.json({ reconcile: true, dry_run: dryRun, remote_count: remoteIds.size, archived_inactive: 0 })
   }
 
+  // Only consider rows not already archived, so nightly runs report 0 once a
+  // removed submission has been archived (and archived_at stays stable).
   const local = await db.prepare(
-    `SELECT jotform_id FROM events WHERE jotform_id IS NOT NULL`
+    `SELECT jotform_id FROM events WHERE jotform_id IS NOT NULL AND is_archived = 0`
   ).all()
   const localIds = ((local.results || []) as { jotform_id: string }[]).map(r => r.jotform_id)
-  const toDelete = localIds.filter(id => !remoteIds.has(id))
+  const toArchive = localIds.filter(id => !remoteIds.has(id))
 
-  if (!dryRun && toDelete.length > 0) {
-    for (let i = 0; i < toDelete.length; i += 50) {
-      const chunk = toDelete.slice(i, i + 50)
-      await db.prepare(
-        `DELETE FROM events WHERE jotform_id IN (${chunk.map(() => '?').join(', ')})`
-      ).bind(...chunk).run()
+  if (!dryRun && toArchive.length > 0) {
+    for (let i = 0; i < toArchive.length; i += 50) {
+      const chunk = toArchive.slice(i, i + 50)
+      await db.prepare(`
+        UPDATE events SET is_archived = 1, archived_at = datetime('now')
+        WHERE jotform_id IN (${chunk.map(() => '?').join(', ')})
+      `).bind(...chunk).run()
     }
   }
 
@@ -271,8 +277,8 @@ async function reconcile(apiKey: string, db: D1Database | undefined, dryRun: boo
     reconcile: true,
     dry_run: dryRun,
     remote_count: remoteIds.size,
-    local_count: localIds.length,
-    deleted: dryRun ? 0 : toDelete.length,
-    would_delete: dryRun ? toDelete.length : undefined,
+    local_active_count: localIds.length,
+    archived_inactive: dryRun ? 0 : toArchive.length,
+    would_archive: dryRun ? toArchive.length : undefined,
   })
 }
