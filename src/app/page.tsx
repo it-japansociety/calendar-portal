@@ -2,50 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { translations } from '../utils/translations'
-import type { CalendarEvent, AvailabilityResult, PaginatedEvents } from '../lib/types'
-
-// Canonical bookable rooms. JotForm's location field is free-form and very
-// inconsistent — a single booking may list multiple rooms, comma-separated, using
-// abbreviations ("AUD, MUR, FOY"), full names ("Auditorium, Murasae Room, Foyer"),
-// or misspellings ("Murase Room"). Each room lists the normalized alias tokens that
-// should count as that room. `prefixes` catches tokens with trailing notes
-// (e.g. "Foyer contingent on PA").
-const ROOMS: { name: string; aliases: string[]; prefixes?: string[] }[] = [
-  { name: 'Auditorium',             aliases: ['aud', 'auditorium'], prefixes: ['auditorium'] },
-  { name: 'Murasae Room',           aliases: ['mur', 'murasae room', 'murase room', 'murasae', 'murase'], prefixes: ['murasae', 'murase'] },
-  { name: 'Foyer',                  aliases: ['foy', 'foyer'], prefixes: ['foyer'] },
-  { name: 'Sony Room',              aliases: ['sony', 'sony room'], prefixes: ['sony room'] },
-  { name: 'Sky Room',               aliases: ['sky', 'sky room'], prefixes: ['sky room'] },
-  { name: 'Gallery',                aliases: ['gal', 'gallery', 'south gallery'], prefixes: ['gallery'] },
-  { name: 'A-Level',                aliases: ['a-level', 'a level', 'alevel'] },
-  { name: 'Pond',                   aliases: ['pond', 'lc pond'], prefixes: ['pond'] },
-  { name: 'Atrium',                 aliases: ['atr', 'atro', 'atrium'], prefixes: ['atrium'] },
-  { name: '3rd Fl Conference Room', aliases: ['3rd fl conference room', '3rd floor conference room'], prefixes: ['3rd fl conference', '3rd floor conference'] },
-  { name: '4th Fl Conference Room', aliases: ['4th fl conference room', '4th floor conference room'], prefixes: ['4th fl conference', '4th floor conference'] },
-  { name: 'Language Center',        aliases: ['lc'], prefixes: ['language center'] },
-  { name: 'Online',                 aliases: ['online'], prefixes: ['online'] },
-  { name: 'Offsite',                aliases: ['offsite'], prefixes: ['offsite'] },
-]
-const ROOM_NAMES = ROOMS.map(r => r.name)
-
-// Lowercase, trim, collapse whitespace, and tighten spaces around hyphens
-// ("A- Level" -> "a-level") so alias matching is robust to formatting noise.
-function normalizeLoc(s: string): string {
-  return s.toLowerCase().trim().replace(/\s*-\s*/g, '-').replace(/\s+/g, ' ')
-}
-
-// Set of canonical room names referenced by a raw (possibly multi-room) location string.
-function roomsInLocation(raw: string | null | undefined): Set<string> {
-  const found = new Set<string>()
-  if (!raw) return found
-  const tokens = raw.split(',').map(normalizeLoc).filter(Boolean)
-  for (const room of ROOMS) {
-    if (tokens.some(t => room.aliases.includes(t) || (room.prefixes?.some(p => t.startsWith(p)) ?? false))) {
-      found.add(room.name)
-    }
-  }
-  return found
-}
+import { ROOM_NAMES, roomsInLocation } from '../lib/rooms'
+import type { CalendarEvent, PaginatedEvents } from '../lib/types'
 
 // A booking with no usable time range (blank, equal, or start >= end — e.g. the
 // "12:00-12:00" all-day placeholder some submissions default to) occupies the whole day.
@@ -90,6 +48,28 @@ function formatTimeRange(start?: string | null, end?: string | null): string {
   return isAllDay(start, end) ? 'All day' : `${formatTime12(start)}–${formatTime12(end)}`
 }
 
+// Inclusive list of ISO dates from..to, capped at 366 days.
+function datesBetween(from: string, to: string): string[] {
+  const dates: string[] = []
+  const d = new Date(`${from}T12:00:00Z`)
+  const endMs = new Date(`${to}T12:00:00Z`).getTime()
+  if (Number.isNaN(d.getTime()) || Number.isNaN(endMs)) return dates
+  while (d.getTime() <= endMs && dates.length < 366) {
+    dates.push(d.toISOString().slice(0, 10))
+    d.setUTCDate(d.getUTCDate() + 1)
+  }
+  return dates
+}
+
+// "2026-10-01" -> "Oct 1 · Wed"
+function formatDateLabel(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`)
+  if (Number.isNaN(d.getTime())) return iso
+  const md = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+  const wd = d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
+  return `${md} · ${wd}`
+}
+
 export default function Home() {
   const [currentSection, setCurrentSection] = useState('home')
   const [isDark, setIsDark] = useState(false)
@@ -101,12 +81,17 @@ export default function Home() {
   const [eventsPagination, setEventsPagination] = useState({ page: 1, page_size: 50, total: 0 })
   const [eventsLoading, setEventsLoading] = useState(false)
   const [eventsFilters, setEventsFilters] = useState({
-    date_from: '', date_to: '', status: '', department: '', location: '',
+    date_from: '', date_to: '', status: '', department: '',
+    locations: [] as string[],
     search: '', include_archived: false, page: 1,
   })
-  const [availQuery, setAvailQuery] = useState({ date: '', start_time: '', end_time: '', location: '' })
-  const [availResult, setAvailResult] = useState<AvailabilityResult | null>(null)
-  const [availDayEvents, setAvailDayEvents] = useState<CalendarEvent[]>([])
+  const [availQuery, setAvailQuery] = useState({
+    date: '', end_date: '', start_time: '', end_time: '',
+    locations: [] as string[],
+  })
+  const [availEvents, setAvailEvents] = useState<CalendarEvent[]>([])
+  // The date range the current availEvents were fetched for (set on Check click)
+  const [availRange, setAvailRange] = useState<{ from: string; to: string } | null>(null)
   const [availLoading, setAvailLoading] = useState(false)
 
   useEffect(() => {
@@ -154,7 +139,7 @@ export default function Home() {
       if (eventsFilters.date_to)   params.set('date_to',   eventsFilters.date_to)
       if (eventsFilters.status)    params.set('status',    eventsFilters.status)
       if (eventsFilters.department) params.set('department', eventsFilters.department)
-      if (eventsFilters.location)  params.set('location',  eventsFilters.location)
+      if (eventsFilters.locations.length) params.set('locations', eventsFilters.locations.join(','))
       if (eventsFilters.search)    params.set('search',    eventsFilters.search)
       if (eventsFilters.include_archived) params.set('include_archived', 'true')
       params.set('page', String(eventsFilters.page))
@@ -172,28 +157,30 @@ export default function Home() {
 
   const checkAvailability = useCallback(async () => {
     if (!availQuery.date) return
+    const from = availQuery.date
+    // An end date before the start date is ignored (single-day check)
+    const to = availQuery.end_date && availQuery.end_date > from ? availQuery.end_date : from
     setAvailLoading(true)
-    setAvailResult(null)
-    setAvailDayEvents([])
+    setAvailRange(null)
+    setAvailEvents([])
     try {
-      // Run both requests in parallel: conflict check + all events for the day
-      const params = new URLSearchParams({ date: availQuery.date })
-      if (availQuery.start_time) params.set('start_time', availQuery.start_time)
-      if (availQuery.end_time)   params.set('end_time',   availQuery.end_time)
-      if (availQuery.location)   params.set('location',   availQuery.location)
-
-      const [availRes, dayRes] = await Promise.all([
-        fetch(`/api/events/availability?${params}`),
-        fetch(`/api/events?date_from=${availQuery.date}&date_to=${availQuery.date}&page_size=200`),
-      ])
-
-      if (availRes.ok) setAvailResult(await availRes.json())
-      if (dayRes.ok) {
-        const dayJson: PaginatedEvents = await dayRes.json()
-        setAvailDayEvents(dayJson.data || [])
+      // Fetch every event in the range; room/time filtering happens client-side
+      // so the grid and per-date list can break results down by room.
+      const all: CalendarEvent[] = []
+      for (let page = 1; page <= 25; page++) {
+        const params = new URLSearchParams({
+          date_from: from, date_to: to, page_size: '200', page: String(page),
+        })
+        const res = await fetch(`/api/events?${params}`)
+        if (!res.ok) break
+        const json: PaginatedEvents = await res.json()
+        all.push(...(json.data || []))
+        if (all.length >= (json.pagination?.total ?? 0) || (json.data || []).length === 0) break
       }
+      setAvailEvents(all)
+      setAvailRange({ from, to })
     } catch {
-      setAvailResult(null)
+      setAvailRange(null)
     } finally {
       setAvailLoading(false)
     }
@@ -536,13 +523,23 @@ export default function Home() {
               <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Check Availability
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                 <div>
-                  <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Date *</label>
+                  <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>From *</label>
                   <input
                     type="date"
                     value={availQuery.date}
                     onChange={e => setAvailQuery(q => ({ ...q, date: e.target.value }))}
+                    className={`w-full rounded-lg border px-3 py-2 text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                  />
+                </div>
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>To (optional)</label>
+                  <input
+                    type="date"
+                    value={availQuery.end_date}
+                    min={availQuery.date || undefined}
+                    onChange={e => setAvailQuery(q => ({ ...q, end_date: e.target.value }))}
                     className={`w-full rounded-lg border px-3 py-2 text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                   />
                 </div>
@@ -564,19 +561,21 @@ export default function Home() {
                     className={`w-full rounded-lg border px-3 py-2 text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                   />
                 </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Location</label>
-                  <select
-                    value={availQuery.location}
-                    onChange={e => setAvailQuery(q => ({ ...q, location: e.target.value }))}
-                    className={`w-full rounded-lg border px-3 py-2 text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                  >
-                    <option value="">All Locations</option>
-                    {ROOM_NAMES.map(loc => (
-                      <option key={loc} value={loc}>{loc}</option>
-                    ))}
-                  </select>
-                </div>
+              </div>
+              <div className="mb-4">
+                <label className={`block text-xs font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Locations <span className="font-normal opacity-70">(click to select — none selected = all)</span>
+                </label>
+                <RoomChips
+                  selected={availQuery.locations}
+                  onToggle={room => setAvailQuery(q => ({
+                    ...q,
+                    locations: q.locations.includes(room)
+                      ? q.locations.filter(r => r !== room)
+                      : [...q.locations, room],
+                  }))}
+                  isDark={isDark}
+                />
               </div>
               <div className="flex gap-2">
                 <button
@@ -590,9 +589,9 @@ export default function Home() {
                 >
                   {availLoading ? 'Checking…' : 'Check Availability'}
                 </button>
-                {(availQuery.date || availQuery.start_time || availQuery.end_time || availQuery.location || availResult) && (
+                {(availQuery.date || availQuery.end_date || availQuery.start_time || availQuery.end_time || availQuery.locations.length > 0 || availRange) && (
                   <button
-                    onClick={() => { setAvailQuery({ date: '', start_time: '', end_time: '', location: '' }); setAvailResult(null); setAvailDayEvents([]) }}
+                    onClick={() => { setAvailQuery({ date: '', end_date: '', start_time: '', end_time: '', locations: [] }); setAvailRange(null); setAvailEvents([]) }}
                     className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
                       isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
@@ -602,29 +601,101 @@ export default function Home() {
                 )}
               </div>
 
-              {availDayEvents.length > 0 && (
+              {availRange && (() => {
+                const start = availQuery.start_time, end = availQuery.end_time
+                const hasWindow = !!(start && end)
+                const windowLabel = hasWindow ? `${formatTime12(start)}–${formatTime12(end)}` : 'All Day'
+                const isRangeMode = availRange.to > availRange.from
+                const rooms = availQuery.locations.length ? availQuery.locations : ROOM_NAMES
+                const legend = (
+                  <p className={`text-[11px] mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <span className="text-green-600">✓ Free</span> · <span className="text-red-600">✗ Booked (Confirmed)</span> · <span className="text-amber-600">⚠ Tentative (Pending/Contingent/TBD)</span>
+                  </p>
+                )
+
+                // Per-room status for one day's events
+                const roomState = (dayEvents: CalendarEvent[], room: string) => {
+                  const roomEvents = dayEvents.filter(e =>
+                    roomsInLocation(e.location).has(room) &&
+                    (!hasWindow || eventOccupies(e, start, end))
+                  )
+                  const confirmed = roomEvents.filter(e => isConfirmedStatus(e.status))
+                  const tentative = roomEvents.filter(e => isTentativeStatus(e.status))
+                  const state = confirmed.length ? 'booked' : tentative.length ? 'tentative' : 'free'
+                  return { state, blocking: confirmed.length ? confirmed : tentative }
+                }
+
+                if (isRangeMode) {
+                  // ── Range mode: one row per date, status per selected room ──
+                  const dates = datesBetween(availRange.from, availRange.to)
+                  const rows = dates.map(d => {
+                    const dayEvents = availEvents.filter(e => e.event_date === d)
+                    const roomStates = rooms.map(room => ({ room, ...roomState(dayEvents, room) }))
+                    const worst = roomStates.some(r => r.state === 'booked') ? 'booked'
+                      : roomStates.some(r => r.state === 'tentative') ? 'tentative' : 'free'
+                    return { date: d, roomStates, worst }
+                  })
+                  const freeCount = rows.filter(r => r.worst === 'free').length
+                  return (
+                    <div className="mt-5">
+                      <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Availability · {formatDateLabel(availRange.from)} – {formatDateLabel(availRange.to)} · {windowLabel}
+                        {availQuery.locations.length > 0 && ` · ${availQuery.locations.join(' + ')}`}
+                      </p>
+                      {legend}
+                      <p className={`text-xs mb-2 font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {freeCount} of {rows.length} days fully free
+                      </p>
+                      <div className={`max-h-[480px] overflow-y-auto rounded-xl border divide-y ${isDark ? 'border-gray-700 divide-gray-700' : 'border-gray-200 divide-gray-100'}`}>
+                        {rows.map(row => (
+                          <div key={row.date} className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 text-xs ${
+                            row.worst === 'free'
+                              ? isDark ? 'bg-green-900/20 text-green-300' : 'bg-green-50/60 text-green-900'
+                              : row.worst === 'booked'
+                                ? isDark ? 'bg-red-900/20 text-red-300' : 'bg-red-50/60 text-red-900'
+                                : isDark ? 'bg-amber-900/20 text-amber-300' : 'bg-amber-50/60 text-amber-900'
+                          }`}>
+                            <span className="font-semibold w-24 shrink-0">{formatDateLabel(row.date)}</span>
+                            {row.worst === 'free' ? (
+                              <span>✓ {availQuery.locations.length ? 'Free' : 'All rooms free'}</span>
+                            ) : (
+                              (availQuery.locations.length
+                                ? row.roomStates
+                                : row.roomStates.filter(r => r.state !== 'free')
+                              ).map(r => (
+                                <span key={r.room} className="inline-flex items-baseline gap-1">
+                                  <span className="font-medium">
+                                    {r.state === 'free' ? '✓' : r.state === 'booked' ? '✗' : '⚠'} {r.room}
+                                  </span>
+                                  {r.blocking.length > 0 && (
+                                    <span className="opacity-70 max-w-[260px] truncate" title={r.blocking.map(e => `${e.event_name} (${formatTimeRange(e.event_start, e.event_end)})`).join(', ')}>
+                                      · {r.blocking[0].event_name} ({formatTimeRange(r.blocking[0].event_start, r.blocking[0].event_end)}){r.blocking.length > 1 ? ` +${r.blocking.length - 1}` : ''}
+                                    </span>
+                                  )}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                }
+
+                // ── Single-day mode: location grid + that day's events ──
+                const dayEvents = availEvents.filter(e => e.event_date === availRange.from)
+                const listEvents = dayEvents.filter(e => !isReleasedStatus(e.status))
+                return (
                 <div className="mt-5 space-y-4">
                   {/* Location availability grid */}
                   <div>
                     <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Location Availability{availQuery.start_time && availQuery.end_time ? ` · ${formatTime12(availQuery.start_time)}–${formatTime12(availQuery.end_time)}` : ' · All Day'}
+                      Location Availability · {windowLabel}
                     </p>
-                    <p className={`text-[11px] mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                      <span className="text-green-600">✓ Free</span> · <span className="text-red-600">✗ Booked (Confirmed)</span> · <span className="text-amber-600">⚠ Tentative (Pending/Contingent/TBD)</span>
-                    </p>
+                    {legend}
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                      {(availQuery.location ? [availQuery.location] : ROOM_NAMES).map(room => {
-                        const start = availQuery.start_time, end = availQuery.end_time
-                        const hasWindow = !!(start && end)
-                        // Events in this room that fall within the requested window (or any
-                        // event that day when no window is given).
-                        const roomEvents = availDayEvents.filter(e =>
-                          roomsInLocation(e.location).has(room) &&
-                          (!hasWindow || eventOccupies(e, start, end))
-                        )
-                        const confirmed = roomEvents.filter(e => isConfirmedStatus(e.status))
-                        const tentative = roomEvents.filter(e => isTentativeStatus(e.status))
-                        const state = confirmed.length ? 'booked' : tentative.length ? 'tentative' : 'free'
+                      {rooms.map(room => {
+                        const { state, blocking } = roomState(dayEvents, room)
                         return (
                           <div key={room} className={`rounded-lg p-2 border text-xs ${
                             state === 'free'
@@ -638,8 +709,8 @@ export default function Home() {
                               {state === 'free'
                                 ? '✓ Free'
                                 : state === 'booked'
-                                  ? `✗ Booked · ${confirmed.length}`
-                                  : `⚠ Tentative · ${tentative.length}`}
+                                  ? `✗ Booked · ${blocking.length}`
+                                  : `⚠ Tentative · ${blocking.length}`}
                             </div>
                           </div>
                         )
@@ -648,15 +719,12 @@ export default function Home() {
                   </div>
 
                   {/* Events scheduled that day (Released events are omitted) */}
-                  {(() => {
-                    const dayEvents = availDayEvents.filter(e => !isReleasedStatus(e.status))
-                    return (
                   <div>
                     <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      All Events That Day ({dayEvents.length})
+                      All Events That Day ({listEvents.length})
                     </p>
                     <div className={`rounded-xl border divide-y overflow-hidden ${isDark ? 'border-gray-700 divide-gray-700' : 'border-gray-200 divide-gray-100'}`}>
-                      {dayEvents.map(ev => (
+                      {listEvents.map(ev => (
                         <div key={ev.id} className={`flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} ${ev.status === 'Cancelled' ? 'opacity-40 line-through' : ''}`}>
                           <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{ev.event_name}</span>
                           {ev.location && <span className="opacity-70">{ev.location}</span>}
@@ -666,10 +734,9 @@ export default function Home() {
                       ))}
                     </div>
                   </div>
-                    )
-                  })()}
                 </div>
-              )}
+                )
+              })()}
             </div>
 
             {/* Filter Bar */}
@@ -682,16 +749,32 @@ export default function Home() {
                   onChange={e => setEventsFilters(f => ({ ...f, search: e.target.value, page: 1 }))}
                   className={`flex-1 rounded-lg border px-3 py-2 text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
                 />
-                {(eventsFilters.search || eventsFilters.date_from || eventsFilters.date_to || eventsFilters.status || eventsFilters.department || eventsFilters.location) && (
+                {(eventsFilters.search || eventsFilters.date_from || eventsFilters.date_to || eventsFilters.status || eventsFilters.department || eventsFilters.locations.length > 0) && (
                   <button
-                    onClick={() => setEventsFilters(f => ({ ...f, search: '', date_from: '', date_to: '', status: '', department: '', location: '', page: 1 }))}
+                    onClick={() => setEventsFilters(f => ({ ...f, search: '', date_from: '', date_to: '', status: '', department: '', locations: [], page: 1 }))}
                     className={`px-4 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                   >
                     Clear
                   </button>
                 )}
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
+              <div className="mb-3">
+                <label className={`block text-xs font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Locations <span className="font-normal opacity-70">(click to select — none selected = all)</span>
+                </label>
+                <RoomChips
+                  selected={eventsFilters.locations}
+                  onToggle={room => setEventsFilters(f => ({
+                    ...f,
+                    locations: f.locations.includes(room)
+                      ? f.locations.filter(r => r !== room)
+                      : [...f.locations, room],
+                    page: 1,
+                  }))}
+                  isDark={isDark}
+                />
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 items-end">
                 <div>
                   <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
                   <input type="date" value={eventsFilters.date_from}
@@ -727,18 +810,6 @@ export default function Home() {
                     <option value="">All Departments</option>
                     {['IT Development','PA','Building Services','Finance','House Operations','Human Resources','Media & Marketing','B&P','Education & Family','Film','Language Center','Administration','Holiday Rentals','Special Events','Office of the President','Gallery','C&C','Talks','Other'].map(d => (
                       <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Location</label>
-                  <select value={eventsFilters.location}
-                    onChange={e => setEventsFilters(f => ({ ...f, location: e.target.value, page: 1 }))}
-                    className={`w-full rounded-lg border px-2 py-1.5 text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                  >
-                    <option value="">All Locations</option>
-                    {['4th Fl Conference Room','3rd Fl Conference Room','AUD','MURSON','YSKY','FOY','GAL','Online','Offsite','A-Level','LC Pond','ATRO','Other'].map(l => (
-                      <option key={l} value={l}>{l}</option>
                     ))}
                   </select>
                 </div>
@@ -892,6 +963,38 @@ function MobileNavLink({ onClick, children, active, isDark }: NavLinkProps) {
     >
       {children}
     </button>
+  )
+}
+
+// Multi-select room picker: one toggleable chip per canonical room.
+// No selection means "all rooms".
+function RoomChips({ selected, onToggle, isDark }: {
+  selected: string[]
+  onToggle: (room: string) => void
+  isDark: boolean
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {ROOM_NAMES.map(room => {
+        const active = selected.includes(room)
+        return (
+          <button
+            key={room}
+            type="button"
+            onClick={() => onToggle(room)}
+            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+              active
+                ? 'bg-red-600 border-red-600 text-white'
+                : isDark
+                  ? 'bg-gray-700 border-gray-600 text-gray-300 hover:border-red-500'
+                  : 'bg-white border-gray-300 text-gray-600 hover:border-red-400'
+            }`}
+          >
+            {room}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 

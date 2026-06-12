@@ -1,8 +1,10 @@
 import { getDB } from '@/lib/cloudflare'
+import { locationMatchesAny } from '@/lib/rooms'
 import type { CalendarEvent, PaginatedEvents } from '@/lib/types'
 
 // GET /api/events
-// Query params: date_from, date_to, status (comma-sep), department, location,
+// Query params: date_from, date_to, status (comma-sep), department, location (exact),
+//               locations (comma-sep canonical room names, alias-matched),
 //               include_archived (bool), page, page_size
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url)
@@ -13,6 +15,9 @@ export async function GET(request: Request): Promise<Response> {
   const statusFilter = p.get('status') || ''
   const department   = p.get('department') || ''
   const location     = p.get('location') || ''
+  // Canonical room names matched against the free-form multi-room location strings
+  // ("MUR, SONY, SKY" / "Auditorium, Murasae Room") via the shared alias map.
+  const selRooms     = (p.get('locations') || '').split(',').map(s => s.trim()).filter(Boolean)
   const search       = p.get('search') || ''
   const inclArchived = p.get('include_archived') === 'true'
   const page         = Math.max(1, parseInt(p.get('page') || '1', 10))
@@ -64,19 +69,37 @@ export async function GET(request: Request): Promise<Response> {
   const where = conditions.join(' AND ')
 
   try {
-    const [dataResult, countResult] = await db.batch([
-      db.prepare(`
+    let data: CalendarEvent[]
+    let total: number
+
+    if (selRooms.length > 0) {
+      // Room filtering can't be expressed as SQL against the free-form location
+      // strings, so fetch the whole result set (capped) and filter + paginate in JS.
+      const result = await db.prepare(`
         SELECT * FROM events WHERE ${where}
         ORDER BY event_date ASC, event_start ASC
-        LIMIT ? OFFSET ?
-      `).bind(...bindings, pageSize, offset),
+        LIMIT 5000
+      `).bind(...bindings).all()
 
-      db.prepare(`SELECT COUNT(*) as total FROM events WHERE ${where}`)
-        .bind(...bindings),
-    ])
+      const matched = ((result.results || []) as unknown as CalendarEvent[])
+        .filter(ev => locationMatchesAny(ev.location, selRooms))
+      total = matched.length
+      data = matched.slice(offset, offset + pageSize)
+    } else {
+      const [dataResult, countResult] = await db.batch([
+        db.prepare(`
+          SELECT * FROM events WHERE ${where}
+          ORDER BY event_date ASC, event_start ASC
+          LIMIT ? OFFSET ?
+        `).bind(...bindings, pageSize, offset),
 
-    const data   = (dataResult.results  || []) as unknown as CalendarEvent[]
-    const total  = ((countResult.results?.[0] as { total: number })?.total) || 0
+        db.prepare(`SELECT COUNT(*) as total FROM events WHERE ${where}`)
+          .bind(...bindings),
+      ])
+
+      data  = (dataResult.results || []) as unknown as CalendarEvent[]
+      total = ((countResult.results?.[0] as { total: number })?.total) || 0
+    }
 
     const response: PaginatedEvents = {
       data,
