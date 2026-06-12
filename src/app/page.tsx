@@ -94,6 +94,8 @@ export default function Home() {
   // The date range the current availEvents were fetched for (set on Check click)
   const [availRange, setAvailRange] = useState<{ from: string; to: string } | null>(null)
   const [availLoading, setAvailLoading] = useState(false)
+  // Dates expanded in the range-mode result list to show all blocking bookings
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme')
@@ -184,6 +186,7 @@ export default function Home() {
     setAvailLoading(true)
     setAvailRange(null)
     setAvailEvents([])
+    setExpandedDates(new Set())
     try {
       // Fetch every event in the range; room/time filtering happens client-side
       // so the grid and per-date list can break results down by room.
@@ -612,7 +615,7 @@ export default function Home() {
                 </button>
                 {(availQuery.date || availQuery.end_date || availQuery.start_time || availQuery.end_time || availQuery.locations.length > 0 || availRange) && (
                   <button
-                    onClick={() => { setAvailQuery({ date: '', end_date: '', start_time: '', end_time: '', locations: [] }); setAvailRange(null); setAvailEvents([]) }}
+                    onClick={() => { setAvailQuery({ date: '', end_date: '', start_time: '', end_time: '', locations: [] }); setAvailRange(null); setAvailEvents([]); setExpandedDates(new Set()) }}
                     className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
                       isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
@@ -668,36 +671,66 @@ export default function Home() {
                         {freeCount} of {rows.length} days fully free
                       </p>
                       <div className={`max-h-[480px] overflow-y-auto rounded-xl border divide-y ${isDark ? 'border-gray-700 divide-gray-700' : 'border-gray-200 divide-gray-100'}`}>
-                        {rows.map(row => (
-                          <div key={row.date} className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 text-xs ${
+                        {rows.map(row => {
+                          const expandable = row.worst !== 'free'
+                          const isExpanded = expandedDates.has(row.date)
+                          return (
+                          <div key={row.date} className={
                             row.worst === 'free'
                               ? isDark ? 'bg-green-900/20 text-green-300' : 'bg-green-50/60 text-green-900'
                               : row.worst === 'booked'
                                 ? isDark ? 'bg-red-900/20 text-red-300' : 'bg-red-50/60 text-red-900'
                                 : isDark ? 'bg-amber-900/20 text-amber-300' : 'bg-amber-50/60 text-amber-900'
-                          }`}>
-                            <span className="font-semibold w-24 shrink-0">{formatDateLabel(row.date)}</span>
-                            {row.worst === 'free' ? (
-                              <span>✓ {availQuery.locations.length ? 'Free' : 'All rooms free'}</span>
-                            ) : (
-                              (availQuery.locations.length
-                                ? row.roomStates
-                                : row.roomStates.filter(r => r.state !== 'free')
-                              ).map(r => (
-                                <span key={r.room} className="inline-flex items-baseline gap-1">
-                                  <span className="font-medium">
-                                    {r.state === 'free' ? '✓' : r.state === 'booked' ? '✗' : '⚠'} {r.room}
-                                  </span>
-                                  {r.blocking.length > 0 && (
-                                    <span className="opacity-70 max-w-[260px] truncate" title={r.blocking.map(e => `${e.event_name} (${formatTimeRange(e.event_start, e.event_end)})`).join(', ')}>
-                                      · {r.blocking[0].event_name} ({formatTimeRange(r.blocking[0].event_start, r.blocking[0].event_end)}){r.blocking.length > 1 ? ` +${r.blocking.length - 1}` : ''}
+                          }>
+                            <div
+                              onClick={expandable ? () => setExpandedDates(prev => {
+                                const next = new Set(prev)
+                                if (next.has(row.date)) next.delete(row.date)
+                                else next.add(row.date)
+                                return next
+                              }) : undefined}
+                              title={expandable ? (isExpanded ? 'Click to collapse' : 'Click to see all bookings') : undefined}
+                              className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 text-xs ${expandable ? 'cursor-pointer' : ''}`}
+                            >
+                              <span className="font-semibold w-24 shrink-0">{formatDateLabel(row.date)}</span>
+                              {row.worst === 'free' ? (
+                                <span>✓ {availQuery.locations.length ? 'Free' : 'All rooms free'}</span>
+                              ) : (
+                                (availQuery.locations.length
+                                  ? row.roomStates
+                                  : row.roomStates.filter(r => r.state !== 'free')
+                                ).map(r => (
+                                  <span key={r.room} className="inline-flex items-baseline gap-1">
+                                    <span className="font-medium">
+                                      {r.state === 'free' ? '✓' : r.state === 'booked' ? '✗' : '⚠'} {r.room}
                                     </span>
-                                  )}
-                                </span>
-                              ))
+                                    {r.blocking.length > 0 && !isExpanded && (
+                                      <span className="opacity-70 max-w-[260px] truncate">
+                                        · {r.blocking[0].event_name} ({formatTimeRange(r.blocking[0].event_start, r.blocking[0].event_end)}){r.blocking.length > 1 ? ` +${r.blocking.length - 1}` : ''}
+                                      </span>
+                                    )}
+                                  </span>
+                                ))
+                              )}
+                              {expandable && <span className="ml-auto shrink-0 opacity-60">{isExpanded ? '▾' : '▸'}</span>}
+                            </div>
+                            {isExpanded && (
+                              <div className="px-3 pb-2 pl-[6.75rem] space-y-1">
+                                {row.roomStates.filter(r => r.blocking.length > 0).flatMap(r =>
+                                  r.blocking.map(ev => (
+                                    <div key={`${r.room}-${ev.id}`} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+                                      <span className="font-medium">{r.state === 'booked' ? '✗' : '⚠'} {r.room}</span>
+                                      <span>{ev.event_name}</span>
+                                      <span className="opacity-70">{formatTimeRange(ev.event_start, ev.event_end)}</span>
+                                      <StatusBadge status={ev.status} />
+                                    </div>
+                                  ))
+                                )}
+                              </div>
                             )}
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   )
