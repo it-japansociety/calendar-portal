@@ -969,11 +969,11 @@ export default function Home() {
                           <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                             {ev.day_of_week || '—'}
                           </td>
-                          <td className={`px-4 py-3 max-w-[200px] truncate font-medium ${isDark ? 'text-white' : 'text-gray-900'} ${ev.status === 'Cancelled' ? 'line-through' : ''}`}
+                          <td className={`px-4 py-3 min-w-[260px] max-w-[420px] font-medium ${isDark ? 'text-white' : 'text-gray-900'} ${ev.status === 'Cancelled' ? 'line-through' : ''}`}
                             title={ev.event_name}>
                             {ev.event_name}
                           </td>
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          <td className={`px-4 py-3 max-w-[240px] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                             {ev.location || '—'}
                           </td>
                           <td className={`px-4 py-3 whitespace-nowrap text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
