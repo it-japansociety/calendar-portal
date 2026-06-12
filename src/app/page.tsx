@@ -935,13 +935,13 @@ export default function Home() {
                         ] as { label: string; key: string }[]).map(col => (
                           <th
                             key={col.label}
-                            onClick={col.key ? () => setEventsFilters(f => ({
-                              ...f,
-                              sort: col.key,
-                              dir: f.sort === col.key && f.dir === 'asc' ? 'desc' : 'asc',
-                              page: 1,
-                            })) : undefined}
-                            title={col.key ? 'Click to sort' : undefined}
+                            onClick={col.key ? () => setEventsFilters(f => {
+                              // Three-state cycle: unsorted -> asc -> desc -> back to default order
+                              if (f.sort !== col.key) return { ...f, sort: col.key, dir: 'asc' as const, page: 1 }
+                              if (f.dir === 'asc')    return { ...f, dir: 'desc' as const, page: 1 }
+                              return { ...f, sort: '', dir: 'asc' as const, page: 1 }
+                            }) : undefined}
+                            title={col.key ? 'Click to sort (third click resets)' : undefined}
                             className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap select-none ${
                               isDark ? 'text-gray-300' : 'text-gray-500'
                             } ${col.key ? 'cursor-pointer hover:text-red-500' : ''} ${
