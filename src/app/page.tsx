@@ -81,7 +81,8 @@ export default function Home() {
   const [eventsPagination, setEventsPagination] = useState({ page: 1, page_size: 50, total: 0 })
   const [eventsLoading, setEventsLoading] = useState(false)
   const [eventsFilters, setEventsFilters] = useState({
-    date_from: '', date_to: '', status: '', department: '',
+    date_from: '', date_to: '', department: '',
+    statuses: [] as string[],
     locations: [] as string[],
     search: '', include_archived: false, include_released: false,
     sort: '', dir: 'asc' as 'asc' | 'desc', page: 1,
@@ -139,7 +140,7 @@ export default function Home() {
     const params = new URLSearchParams()
     if (eventsFilters.date_from) params.set('date_from', eventsFilters.date_from)
     if (eventsFilters.date_to)   params.set('date_to',   eventsFilters.date_to)
-    if (eventsFilters.status)    params.set('status',    eventsFilters.status)
+    if (eventsFilters.statuses.length) params.set('status', eventsFilters.statuses.join(','))
     if (eventsFilters.department) params.set('department', eventsFilters.department)
     if (eventsFilters.locations.length) params.set('locations', eventsFilters.locations.join(','))
     if (eventsFilters.search)    params.set('search',    eventsFilters.search)
@@ -803,9 +804,9 @@ export default function Home() {
                   onChange={e => setEventsFilters(f => ({ ...f, search: e.target.value, page: 1 }))}
                   className={`flex-1 rounded-lg border px-3 py-2 text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
                 />
-                {(eventsFilters.search || eventsFilters.date_from || eventsFilters.date_to || eventsFilters.status || eventsFilters.department || eventsFilters.locations.length > 0) && (
+                {(eventsFilters.search || eventsFilters.date_from || eventsFilters.date_to || eventsFilters.statuses.length > 0 || eventsFilters.department || eventsFilters.locations.length > 0) && (
                   <button
-                    onClick={() => setEventsFilters(f => ({ ...f, search: '', date_from: '', date_to: '', status: '', department: '', locations: [], page: 1 }))}
+                    onClick={() => setEventsFilters(f => ({ ...f, search: '', date_from: '', date_to: '', statuses: [], department: '', locations: [], page: 1 }))}
                     className={`px-4 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                   >
                     Clear
@@ -837,7 +838,24 @@ export default function Home() {
                   isDark={isDark}
                 />
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 items-end">
+              <div className="mb-3">
+                <label className={`block text-xs font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Status <span className="font-normal opacity-70">(click to select — none selected = all except Released)</span>
+                </label>
+                <Chips
+                  options={['Confirmed', 'Pending', 'Contingent', 'TBD', 'Released', 'Cancelled']}
+                  selected={eventsFilters.statuses}
+                  onToggle={status => setEventsFilters(f => ({
+                    ...f,
+                    statuses: f.statuses.includes(status)
+                      ? f.statuses.filter(s => s !== status)
+                      : [...f.statuses, status],
+                    page: 1,
+                  }))}
+                  isDark={isDark}
+                />
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 items-end">
                 <div>
                   <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
                   <input type="date" value={eventsFilters.date_from}
@@ -851,18 +869,6 @@ export default function Home() {
                     onChange={e => setEventsFilters(f => ({ ...f, date_to: e.target.value, page: 1 }))}
                     className={`w-full rounded-lg border px-2 py-1.5 text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                   />
-                </div>
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Status</label>
-                  <select value={eventsFilters.status}
-                    onChange={e => setEventsFilters(f => ({ ...f, status: e.target.value, page: 1 }))}
-                    className={`w-full rounded-lg border px-2 py-1.5 text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                  >
-                    <option value="">All Statuses</option>
-                    {['Released','Confirmed','Contingent','Pending','Cancelled','TBD','Other'].map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
                 </div>
                 <div>
                   <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Department</label>
@@ -1070,20 +1076,21 @@ function MobileNavLink({ onClick, children, active, isDark }: NavLinkProps) {
 
 // Multi-select room picker: one toggleable chip per canonical room.
 // No selection means "all rooms".
-function RoomChips({ selected, onToggle, isDark }: {
+function Chips({ options, selected, onToggle, isDark }: {
+  options: string[]
   selected: string[]
-  onToggle: (room: string) => void
+  onToggle: (value: string) => void
   isDark: boolean
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      {ROOM_NAMES.map(room => {
-        const active = selected.includes(room)
+      {options.map(value => {
+        const active = selected.includes(value)
         return (
           <button
-            key={room}
+            key={value}
             type="button"
-            onClick={() => onToggle(room)}
+            onClick={() => onToggle(value)}
             className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
               active
                 ? 'bg-red-600 border-red-600 text-white'
@@ -1092,12 +1099,16 @@ function RoomChips({ selected, onToggle, isDark }: {
                   : 'bg-white border-gray-300 text-gray-600 hover:border-red-400'
             }`}
           >
-            {room}
+            {value}
           </button>
         )
       })}
     </div>
   )
+}
+
+function RoomChips(props: { selected: string[]; onToggle: (room: string) => void; isDark: boolean }) {
+  return <Chips options={ROOM_NAMES} {...props} />
 }
 
 function StatusBadge({ status }: { status: string }) {
