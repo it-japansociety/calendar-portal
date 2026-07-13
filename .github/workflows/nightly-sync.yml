@@ -37,7 +37,12 @@ jobs:
             PAYLOAD='{"dry_run": false}'
             echo "Running FULL backfill (all submissions)"
           else
-            SINCE=$(date -u -d "2 hours ago" +"%Y-%m-%d %H:%M:%S")
+            # JotForm's created_at/updated_at are in the account's local timezone
+            # (America/New_York), NOT UTC — computing this window in UTC put it
+            # 4-5 hours in JotForm's future and every incremental sync matched
+            # nothing. The wider 6-hour window is a DST/throttling safety margin;
+            # overlap is harmless because the import upserts idempotently.
+            SINCE=$(TZ=America/New_York date -d "6 hours ago" +"%Y-%m-%d %H:%M:%S")
             PAYLOAD="{\"dry_run\": false, \"since_date\": \"$SINCE\"}"
             echo "Running incremental sync since $SINCE"
           fi

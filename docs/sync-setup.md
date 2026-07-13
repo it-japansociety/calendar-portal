@@ -68,5 +68,7 @@ ignored — no GitHub secrets required.
 
 The cron is `*/15 * * * *` (every 15 min), but GitHub throttles high-frequency
 scheduled workflows on shared runners, so in practice it fires roughly every
-1–3 hours. The workflow uses a 2-hour `since_date` lookback window, so overlapping
-runs just re-upsert the same rows harmlessly and nothing is missed.
+1–3 hours. The workflow uses a 6-hour `since_date` lookback window computed in
+**America/New_York time** (JotForm's `created_at`/`updated_at` are in the account's
+local timezone, not UTC), so overlapping runs just re-upsert the same rows
+harmlessly and nothing is missed.
