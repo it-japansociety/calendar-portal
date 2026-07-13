@@ -3,49 +3,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import { translations } from '../utils/translations'
 import { ROOM_NAMES, roomsInLocation } from '../lib/rooms'
+import {
+  isAllDay, isConfirmedStatus, isTentativeStatus, isReleasedStatus, isWallsOnly,
+  formatTime12, formatTimeRange,
+} from '../lib/status'
+import CalendarView from '../components/CalendarView'
 import type { CalendarEvent, PaginatedEvents } from '../lib/types'
-
-// A booking with no usable time range (blank, equal, or start >= end — e.g. the
-// "12:00-12:00" all-day placeholder some submissions default to) occupies the whole day.
-function isAllDay(start?: string | null, end?: string | null): boolean {
-  return !start || !end || start >= end
-}
 
 // Whether an event occupies a requested [start, end) window. All-day bookings always do;
 // otherwise two intervals overlap when start < otherEnd && end > otherStart.
 function eventOccupies(ev: CalendarEvent, start: string, end: string): boolean {
   if (isAllDay(ev.event_start, ev.event_end)) return true
   return ev.event_start < end && ev.event_end > start
-}
-
-// Booking-status buckets for availability. Only a Confirmed booking firmly occupies
-// a space; Pending/Contingent/TBD are tentative (contested, not yet decided);
-// Released and Cancelled are ignored (and archived events are filtered out upstream).
-function isConfirmedStatus(s?: string | null): boolean {
-  return (s || '').toLowerCase().trim() === 'confirmed'
-}
-function isTentativeStatus(s?: string | null): boolean {
-  return ['pending', 'contingent', 'tbd'].includes((s || '').toLowerCase().trim())
-}
-function isReleasedStatus(s?: string | null): boolean {
-  return (s || '').toLowerCase().trim() === 'released'
-}
-
-// Convert a 24h "HH:MM" string to 12-hour "h:MM AM/PM" for display.
-function formatTime12(t?: string | null): string {
-  if (!t) return ''
-  const m = /^(\d{1,2}):(\d{2})/.exec(t)
-  if (!m) return t
-  let h = parseInt(m[1], 10)
-  const ampm = h >= 12 ? 'PM' : 'AM'
-  h = h % 12
-  if (h === 0) h = 12
-  return `${h}:${m[2]} ${ampm}`
-}
-
-// Render a booking's time range, collapsing all-day placeholders to "All day".
-function formatTimeRange(start?: string | null, end?: string | null): string {
-  return isAllDay(start, end) ? 'All day' : `${formatTime12(start)}–${formatTime12(end)}`
 }
 
 // Inclusive list of ISO dates from..to, capped at 366 days.
@@ -253,6 +222,9 @@ export default function Home() {
               <NavLink onClick={() => showSection('events')} active={currentSection === 'events'} isDark={isDark}>
                 {t('nav.events')}
               </NavLink>
+              <NavLink onClick={() => showSection('schedule')} active={currentSection === 'schedule'} isDark={isDark}>
+                {t('nav.schedule')}
+              </NavLink>
               <NavLink onClick={() => showSection('excel')} active={currentSection === 'excel'} isDark={isDark}>
                 {t('nav.excel')}
               </NavLink>
@@ -327,6 +299,9 @@ export default function Home() {
                 <MobileNavLink onClick={() => showSection('events')} active={currentSection === 'events'} isDark={isDark}>
                   {t('nav.events')}
                 </MobileNavLink>
+                <MobileNavLink onClick={() => showSection('schedule')} active={currentSection === 'schedule'} isDark={isDark}>
+                  {t('nav.schedule')}
+                </MobileNavLink>
                 <MobileNavLink onClick={() => showSection('excel')} active={currentSection === 'excel'} isDark={isDark}>
                   {t('nav.excel')}
                 </MobileNavLink>
@@ -359,7 +334,7 @@ export default function Home() {
             </div>
 
             {/* Clean Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               <CleanCard
                 onClick={() => showSection('form')}
                 title={t('home.card.form')}
@@ -375,6 +350,13 @@ export default function Home() {
                 icon="🔍"
               />
               <CleanCard
+                onClick={() => showSection('schedule')}
+                title={t('home.card.schedule')}
+                description={t('home.card.scheduleDesc')}
+                isDark={isDark}
+                icon="📅"
+              />
+              <CleanCard
                 onClick={() => showSection('excel')}
                 title={t('home.card.excel')}
                 description={t('home.card.excelDesc')}
@@ -386,7 +368,7 @@ export default function Home() {
                 title={t('home.card.table')}
                 description={t('home.card.tableDesc')}
                 isDark={isDark}
-                icon="📅"
+                icon="🗂️"
               />
               <CleanCard
                 onClick={() => window.open('https://japan-society.gogenuity.com/help_center', '_blank')}
@@ -439,6 +421,11 @@ export default function Home() {
               />
             </div>
           </section>
+        )}
+
+        {/* Interactive Calendar Section */}
+        {currentSection === 'schedule' && (
+          <CalendarView isDark={isDark} t={t} />
         )}
 
         {/* Calendar/Table Section */}
@@ -638,16 +625,20 @@ export default function Home() {
                   </p>
                 )
 
-                // Per-room status for one day's events
+                // Per-room status for one day's events. "Walls only" bookings (flagged
+                // in the description, e.g. art exhibitions on the A-Level walls) never
+                // block the room — the space itself stays usable.
                 const roomState = (dayEvents: CalendarEvent[], room: string) => {
                   const roomEvents = dayEvents.filter(e =>
                     roomsInLocation(e.location).has(room) &&
                     (!hasWindow || eventOccupies(e, start, end))
                   )
-                  const confirmed = roomEvents.filter(e => isConfirmedStatus(e.status))
-                  const tentative = roomEvents.filter(e => isTentativeStatus(e.status))
+                  const blocking_ = roomEvents.filter(e => !isWallsOnly(e.description))
+                  const wallsOnly = roomEvents.filter(e => isWallsOnly(e.description))
+                  const confirmed = blocking_.filter(e => isConfirmedStatus(e.status))
+                  const tentative = blocking_.filter(e => isTentativeStatus(e.status))
                   const state = confirmed.length ? 'booked' : tentative.length ? 'tentative' : 'free'
-                  return { state, blocking: confirmed.length ? confirmed : tentative }
+                  return { state, blocking: confirmed.length ? confirmed : tentative, wallsOnly }
                 }
 
                 if (isRangeMode) {
@@ -750,7 +741,7 @@ export default function Home() {
                     {legend}
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                       {rooms.map(room => {
-                        const { state, blocking } = roomState(dayEvents, room)
+                        const { state, blocking, wallsOnly } = roomState(dayEvents, room)
                         return (
                           <div key={room} className={`rounded-lg p-2 border text-xs ${
                             state === 'free'
@@ -767,6 +758,11 @@ export default function Home() {
                                   ? `✗ Booked · ${blocking.length}`
                                   : `⚠ Tentative · ${blocking.length}`}
                             </div>
+                            {wallsOnly.length > 0 && (
+                              <div className="mt-0.5 opacity-70" title={wallsOnly.map(e => e.event_name).join(', ')}>
+                                ℹ Walls in use (space usable)
+                              </div>
+                            )}
                           </div>
                         )
                       })}
@@ -931,6 +927,7 @@ export default function Home() {
                           { label: 'End',        key: 'event_end' },
                           { label: 'Hold',       key: '' },
                           { label: 'Contact',    key: 'contact_name' },
+                          { label: 'Notes',      key: '' },
                           { label: 'Status',     key: 'status' },
                         ] as { label: string; key: string }[]).map(col => (
                           <th
@@ -990,6 +987,10 @@ export default function Home() {
                           </td>
                           <td className={`px-4 py-3 whitespace-nowrap text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                             {ev.contact_name}
+                          </td>
+                          <td className={`px-4 py-3 max-w-[220px] text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                            title={ev.description || undefined}>
+                            <span className="line-clamp-2">{ev.description || '—'}</span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <StatusBadge status={ev.status} />

@@ -41,3 +41,153 @@
     background-position: 100% 50%;
   }
 }
+
+/* ── Interactive calendar (FullCalendar) theming ─────────────────────────── */
+
+.js-cal {
+  --fc-border-color: #e5e7eb;
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: transparent;
+  --fc-today-bg-color: rgba(185, 28, 28, 0.06);
+  --fc-button-bg-color: #b91c1c;
+  --fc-button-border-color: #b91c1c;
+  --fc-button-hover-bg-color: #991b1b;
+  --fc-button-hover-border-color: #991b1b;
+  --fc-button-active-bg-color: #7f1d1d;
+  --fc-button-active-border-color: #7f1d1d;
+  --fc-now-indicator-color: #dc2626;
+  color: #1f2937;
+}
+
+.js-cal-dark {
+  --fc-border-color: #374151;
+  --fc-today-bg-color: rgba(248, 113, 113, 0.10);
+  color: #e5e7eb;
+}
+
+.js-cal .fc {
+  font-size: 0.875rem;
+}
+
+.js-cal .fc .fc-button {
+  text-transform: none;
+  font-weight: 500;
+  border-radius: 9999px;
+  padding: 0.35rem 0.9rem;
+}
+
+.js-cal .fc .fc-toolbar-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.js-cal .fc a {
+  color: inherit;
+}
+
+.js-cal .fc .fc-event {
+  border-radius: 6px;
+  padding: 1px 3px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+/* Confirmed: solid green — firmly occupying the space */
+.js-cal .fc .evt-confirmed {
+  background-color: #15803d;
+  border: 1px solid #14532d;
+}
+.js-cal .fc .evt-confirmed .fc-event-main,
+.js-cal .fc .evt-confirmed .fc-event-time,
+.js-cal .fc .evt-confirmed .fc-event-title {
+  color: #fff;
+}
+
+/* Tentative (Pending/Contingent/TBD): faded yellow stripes, dashed border */
+.js-cal .fc .evt-tentative {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(202, 138, 4, 0.16) 0 6px,
+    rgba(202, 138, 4, 0.32) 6px 12px
+  );
+  border: 1px dashed #ca8a04;
+}
+.js-cal .fc .evt-tentative .fc-event-main,
+.js-cal .fc .evt-tentative .fc-event-time,
+.js-cal .fc .evt-tentative .fc-event-title {
+  color: #854d0e;
+}
+.js-cal-dark .fc .evt-tentative .fc-event-main,
+.js-cal-dark .fc .evt-tentative .fc-event-time,
+.js-cal-dark .fc .evt-tentative .fc-event-title {
+  color: #facc15;
+}
+
+/* Cancelled: greyed out and struck through (hidden unless toggled on) */
+.js-cal .fc .evt-cancelled {
+  background-color: rgba(156, 163, 175, 0.25);
+  border: 1px solid #9ca3af;
+}
+.js-cal .fc .evt-cancelled .fc-event-main,
+.js-cal .fc .evt-cancelled .fc-event-time,
+.js-cal .fc .evt-cancelled .fc-event-title {
+  color: #6b7280;
+  text-decoration: line-through;
+}
+.js-cal-dark .fc .evt-cancelled .fc-event-main,
+.js-cal-dark .fc .evt-cancelled .fc-event-time,
+.js-cal-dark .fc .evt-cancelled .fc-event-title {
+  color: #9ca3af;
+}
+
+/* Breathing room between stacked events in month cells */
+.js-cal .fc .fc-daygrid-event-harness {
+  margin-bottom: 2px;
+}
+.js-cal .fc .fc-daygrid-day-events {
+  padding: 0 2px;
+}
+
+/* "+N more" popover in month view */
+.js-cal .fc .fc-more-popover {
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 380px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--fc-border-color);
+  background: #ffffff;
+  z-index: 60;
+}
+.js-cal .fc .fc-more-popover .fc-popover-header {
+  padding: 8px 10px;
+  font-weight: 600;
+  background: #f3f4f6;
+}
+.js-cal .fc .fc-more-popover .fc-popover-body {
+  padding: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  min-width: 260px;
+}
+/* FullCalendar absolutely positions event harnesses inside the popover using the
+   month-cell coordinates, which makes entries overlap and double up. Stack them
+   as a normal flow instead. */
+.js-cal .fc .fc-more-popover .fc-daygrid-event-harness,
+.js-cal .fc .fc-more-popover .fc-daygrid-event-harness-abs {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  visibility: visible !important;
+  margin: 0 0 4px 0;
+}
+.js-cal .fc .fc-more-popover .fc-event {
+  margin: 0;
+}
+.js-cal-dark .fc .fc-more-popover {
+  background: #1f2937;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+.js-cal-dark .fc .fc-more-popover .fc-popover-header {
+  background: #374151;
+}
