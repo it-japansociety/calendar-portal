@@ -69,3 +69,41 @@ jobs:
           fi
 
           echo "Sync complete"
+
+      - name: Verify newest JotForm submission reached the portal
+        run: |
+          # End-to-end parity check: the newest ACTIVE JotForm submission must
+          # exist in the portal DB after a sync. Catches silent failures that
+          # still return HTTP 200 with 0 rows imported (bad date filter,
+          # timezone skew, wrong form id, revoked API key) — the failure mode
+          # that previously hid behind weeks of green runs.
+          FORM_ID=252113809267053
+          PORTAL=https://calendar-portal.japan-society-account.workers.dev
+
+          NEWEST=$(curl -s "https://api.jotform.com/form/$FORM_ID/submissions?apiKey=${{ secrets.JOTFORM_API_KEY }}&limit=20" \
+            | jq -r '[.content[] | select(.status=="ACTIVE")][0] | "\(.id) \(.created_at)"')
+          SUB_ID=$(echo "$NEWEST" | cut -d' ' -f1)
+          SUB_CREATED=$(echo "$NEWEST" | cut -d' ' -f2-)
+
+          if [ -z "$SUB_ID" ] || [ "$SUB_ID" = "null" ]; then
+            echo "::error::Parity check could not fetch submissions from JotForm"
+            exit 1
+          fi
+
+          # Grace period: a submission created moments ago may have landed after
+          # this run's import step started — don't fail on it, the next run has it.
+          # JotForm timestamps are America/New_York local time.
+          CREATED_EPOCH=$(TZ=America/New_York date -d "$SUB_CREATED" +%s)
+          AGE=$(( $(date +%s) - CREATED_EPOCH ))
+          if [ "$AGE" -lt 900 ]; then
+            echo "Newest submission $SUB_ID is only ${AGE}s old — skipping parity check this run"
+            exit 0
+          fi
+
+          FOUND=$(curl -s "$PORTAL/api/events?jotform_id=$SUB_ID" | jq '.data | length')
+          if [ "$FOUND" -ge 1 ] 2>/dev/null; then
+            echo "Parity OK: newest JotForm submission $SUB_ID (created $SUB_CREATED) is in the portal DB"
+          else
+            echo "::error::Newest JotForm submission $SUB_ID (created $SUB_CREATED) is MISSING from the portal DB — the sync is failing silently"
+            exit 1
+          fi

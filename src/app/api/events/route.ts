@@ -125,6 +125,17 @@ export async function GET(request: Request): Promise<Response> {
     conditions.push(`status != 'Released'`)
   }
 
+  // Exact lookup by JotForm submission id, used by the sync workflow's parity
+  // check. Overrides every other filter (including archived/released visibility)
+  // so a synced row is found regardless of its state.
+  const jotformId = p.get('jotform_id') || ''
+  if (jotformId) {
+    conditions.length = 0
+    bindings.length = 0
+    conditions.push('jotform_id = ?')
+    bindings.push(jotformId)
+  }
+
   const where = conditions.join(' AND ')
   const orderBy = sortCol
     ? `${sortCol} ${sortDir}, event_date ASC, event_start ASC`
