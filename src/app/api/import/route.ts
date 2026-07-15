@@ -77,6 +77,13 @@ async function handleImport(request: Request): Promise<Response> {
     }
   }
 
+  // Lightweight in-code migration: older deployments lack the submitted_at
+  // column (0002). ALTER is idempotent-by-guard — the duplicate-column error
+  // on every later run is expected and ignored.
+  if (db) {
+    try { await db.prepare('ALTER TABLE events ADD COLUMN submitted_at TEXT').run() } catch { /* already applied */ }
+  }
+
   // ── Reconcile mode: remove D1 rows whose submission no longer exists in JotForm ──
   if (body.reconcile === true) {
     return await reconcile(apiKey, db, dryRun)
@@ -154,9 +161,10 @@ async function handleImport(request: Request): Promise<Response> {
                 event_name, department, location, event_date, day_of_week,
                 event_start, event_end, hold_start, hold_end, doors_open,
                 check_in_time, run_time, contact_name, email, phone,
-                description, attachment_url, status, count, jotform_id, updated_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                description, attachment_url, status, count, jotform_id, submitted_at, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
               ON CONFLICT(jotform_id) DO UPDATE SET
+                submitted_at  = COALESCE(excluded.submitted_at, events.submitted_at),
                 event_name    = excluded.event_name,
                 department    = excluded.department,
                 location      = excluded.location,
@@ -183,7 +191,7 @@ async function handleImport(request: Request): Promise<Response> {
               ev.day_of_week, ev.event_start, ev.event_end, ev.hold_start,
               ev.hold_end, ev.doors_open, ev.check_in_time, ev.run_time,
               ev.contact_name, ev.email, ev.phone, ev.description,
-              ev.attachment_url, ev.status, ev.count, sub.id
+              ev.attachment_url, ev.status, ev.count, sub.id, sub.created_at || null
             )
           })
 

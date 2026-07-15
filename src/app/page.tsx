@@ -8,6 +8,7 @@ import {
   formatTime12, formatTimeRange,
 } from '../lib/status'
 import CalendarView from '../components/CalendarView'
+import { deptColorFor } from '../lib/departments'
 import type { CalendarEvent, PaginatedEvents } from '../lib/types'
 
 // Whether an event occupies a requested [start, end) window. All-day bookings always do;
@@ -776,7 +777,15 @@ export default function Home() {
                     </p>
                     <div className={`rounded-xl border divide-y overflow-hidden ${isDark ? 'border-gray-700 divide-gray-700' : 'border-gray-200 divide-gray-100'}`}>
                       {listEvents.map(ev => (
-                        <div key={ev.id} className={`flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} ${ev.status === 'Cancelled' ? 'opacity-40 line-through' : ''}`}>
+                        <div key={ev.id} className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} ${ev.status === 'Cancelled' ? 'opacity-40 line-through' : ''}`}>
+                          <span
+                            className="inline-block w-3 h-3 rounded-sm border shrink-0"
+                            title={ev.department || 'No department'}
+                            style={{
+                              backgroundColor: deptColorFor(ev.department).bg,
+                              borderColor: deptColorFor(ev.department).border ?? deptColorFor(ev.department).bg,
+                            }}
+                          />
                           <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{ev.event_name}</span>
                           {ev.location && <span className="opacity-70">{ev.location}</span>}
                           <span>{formatTimeRange(ev.event_start, ev.event_end)}</span>
@@ -918,6 +927,7 @@ export default function Home() {
                     <thead>
                       <tr className={isDark ? 'bg-gray-700/60' : 'bg-gray-50'}>
                         {([
+                          { label: 'Submitted',  key: 'submitted_at' },
                           { label: 'Date',       key: 'event_date' },
                           { label: 'Day',        key: '' },
                           { label: 'Event Name', key: 'event_name' },
@@ -960,6 +970,10 @@ export default function Home() {
                               : `border-gray-100 ${i % 2 === 0 ? '' : 'bg-gray-50/50'} hover:bg-red-50/30`
                           } ${ev.status === 'Cancelled' ? 'opacity-50' : ''}`}
                         >
+                          <td className={`px-4 py-3 whitespace-nowrap text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                            title={ev.submitted_at || undefined}>
+                            {ev.submitted_at ? ev.submitted_at.slice(0, 10) : '—'}
+                          </td>
                           <td className={`px-4 py-3 whitespace-nowrap font-medium ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
                             {ev.event_date}
                           </td>
@@ -973,8 +987,21 @@ export default function Home() {
                           <td className={`px-4 py-3 max-w-[240px] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                             {ev.location || '—'}
                           </td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {ev.department || '—'}
+                          <td className="px-4 py-3 whitespace-nowrap text-xs">
+                            {ev.department ? (
+                              <span
+                                className="inline-block px-2 py-0.5 rounded-full font-medium border"
+                                style={{
+                                  backgroundColor: deptColorFor(ev.department).bg,
+                                  color: deptColorFor(ev.department).text,
+                                  borderColor: deptColorFor(ev.department).border ?? deptColorFor(ev.department).bg,
+                                }}
+                              >
+                                {ev.department}
+                              </span>
+                            ) : (
+                              <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>—</span>
+                            )}
                           </td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                             {formatTime12(ev.event_start) || '—'}

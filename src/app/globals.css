@@ -123,6 +123,21 @@
   color: #facc15;
 }
 
+/* Department-colored events: booking status is carried by the border/opacity.
+   Confirmed = solid border; tentative = dashed border, slightly faded. */
+.js-cal .fc .evt-dept-confirmed {
+  border-width: 1px;
+  border-style: solid;
+}
+.js-cal .fc .evt-dept-tentative {
+  border-width: 1px;
+  border-style: dashed !important;
+  opacity: 0.75;
+}
+.js-cal .fc .evt-dept-bold .fc-event-title {
+  font-weight: 700;
+}
+
 /* Cancelled: greyed out and struck through (hidden unless toggled on) */
 .js-cal .fc .evt-cancelled {
   background-color: rgba(156, 163, 175, 0.25);

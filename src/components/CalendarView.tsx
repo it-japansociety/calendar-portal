@@ -7,6 +7,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import type { DatesSetArg, EventClickArg, EventInput } from '@fullcalendar/core'
 import { ROOM_NAMES, locationMatchesAny } from '../lib/rooms'
+import { deptColorFor, DEPT_LEGEND, DEPT_COLORS } from '../lib/departments'
 import {
   isAllDay, isConfirmedStatus, isCancelledStatus, formatTime12, formatTimeRange,
 } from '../lib/status'
@@ -117,13 +118,28 @@ export default function CalendarView({ isDark, t }: { isDark: boolean, t: (key: 
       .filter(ev => locationMatchesAny(ev.location, selRooms))
       .map(ev => {
         const allDay = isAllDay(ev.event_start, ev.event_end)
+        const bucket = bucketOf(ev)
+        // Fill color = department (house color sheet); booking status is carried
+        // by the border/opacity: solid = confirmed, dashed + faded = tentative.
+        const c = deptColorFor(ev.department)
+        const cancelled = bucket === 'cancelled'
         return {
           id: String(ev.id),
           title: ev.event_name,
           start: allDay ? ev.event_date : `${ev.event_date}T${ev.event_start}`,
           end: allDay ? undefined : `${ev.event_date}T${ev.event_end}`,
           allDay,
-          classNames: [`evt-${bucketOf(ev)}`],
+          // Cancelled events keep the gray strikethrough styling from CSS,
+          // so no inline colors for them (inline would win over the class).
+          ...(cancelled ? {} : {
+            backgroundColor: c.bg,
+            borderColor: c.border ?? c.bg,
+            textColor: c.text,
+          }),
+          classNames: [
+            cancelled ? 'evt-cancelled' : bucket === 'tentative' ? 'evt-dept-tentative' : 'evt-dept-confirmed',
+            ...(c.bold && !cancelled ? ['evt-dept-bold'] : []),
+          ],
           extendedProps: { ev },
         }
       }),
@@ -255,11 +271,11 @@ export default function CalendarView({ isDark, t }: { isDark: boolean, t: (key: 
             Status
           </span>
           <button onClick={() => toggleBucket('confirmed')} className={chip(buckets.confirmed)}>
-            <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle bg-green-600" />
+            <span className={`inline-block w-2 h-2 rounded-full mr-1.5 align-middle border-2 ${isDark ? 'bg-gray-200 border-gray-200' : 'bg-gray-700 border-gray-700'}`} />
             Confirmed
           </button>
           <button onClick={() => toggleBucket('tentative')} className={chip(buckets.tentative)}>
-            <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle bg-yellow-500" />
+            <span className={`inline-block w-2 h-2 rounded-full mr-1.5 align-middle border-2 border-dashed ${isDark ? 'border-gray-300' : 'border-gray-500'}`} />
             Tentative
           </button>
           <button onClick={() => toggleBucket('cancelled')} className={chip(buckets.cancelled)}>
@@ -269,6 +285,23 @@ export default function CalendarView({ isDark, t }: { isDark: boolean, t: (key: 
           {loading && (
             <span className={`text-xs ml-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Loading…</span>
           )}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3">
+          <span className={`text-xs font-semibold uppercase tracking-wide mr-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            Colors
+          </span>
+          {DEPT_LEGEND.map(({ label, dept }) => (
+            <span key={dept} title={dept} className={`inline-flex items-center gap-1.5 text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+              <span
+                className="inline-block w-3 h-3 rounded-sm border"
+                style={{
+                  backgroundColor: DEPT_COLORS[dept].bg,
+                  borderColor: DEPT_COLORS[dept].border ?? DEPT_COLORS[dept].bg,
+                }}
+              />
+              {label}
+            </span>
+          ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className={`text-xs font-semibold uppercase tracking-wide mr-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -370,8 +403,7 @@ export default function CalendarView({ isDark, t }: { isDark: boolean, t: (key: 
                 ['Contact', selected.contact_name !== 'Unknown' ? selected.contact_name : ''],
                 ['Email', selected.email || ''],
                 ['Phone', selected.phone || ''],
-                ['Submitted', selected.created_at ? selected.created_at.slice(0, 16) : ''],
-                ['Updated', selected.updated_at ? selected.updated_at.slice(0, 16) : ''],
+                ['Submitted', selected.submitted_at ? selected.submitted_at.slice(0, 16) : ''],
               ].filter(([, v]) => v).map(([label, value]) => (
                 <div key={label} className="flex gap-3">
                   <dt className={`w-28 shrink-0 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{label}</dt>

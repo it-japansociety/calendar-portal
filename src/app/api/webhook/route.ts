@@ -48,11 +48,12 @@ export async function POST(request: Request): Promise<Response> {
           event_name, department, location, event_date, day_of_week,
           event_start, event_end, hold_start, hold_end, doors_open,
           check_in_time, run_time, contact_name, email, phone,
-          description, attachment_url, status, count, jotform_id, updated_at
+          description, attachment_url, status, count, jotform_id, submitted_at, updated_at
         ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now')
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now')
         )
         ON CONFLICT(jotform_id) DO UPDATE SET
+          submitted_at  = COALESCE(events.submitted_at, excluded.submitted_at),
           event_name    = excluded.event_name,
           department    = excluded.department,
           location      = excluded.location,

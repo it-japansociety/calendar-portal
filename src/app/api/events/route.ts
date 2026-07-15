@@ -12,6 +12,7 @@ const SORT_COLUMNS: Record<string, string> = {
   event_end:    'event_end',
   status:       'status',
   contact_name: 'contact_name',
+  submitted_at: 'submitted_at',
 }
 
 // 24h "HH:MM" -> "h:MM AM/PM" for CSV export (matches the portal display).

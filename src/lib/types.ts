@@ -29,13 +29,14 @@ export interface CalendarEvent {
   status: EventStatus
   count: number | null
   jotform_id: string | null
+  submitted_at: string | null   // JotForm's created_at (when the form was submitted)
   is_archived: number
   archived_at: string | null
   created_at: string
   updated_at: string
 }
 
-export type EventInsert = Omit<CalendarEvent, 'id' | 'is_archived' | 'archived_at' | 'created_at' | 'updated_at'>
+export type EventInsert = Omit<CalendarEvent, 'id' | 'is_archived' | 'archived_at' | 'created_at' | 'updated_at' | 'submitted_at'>
 
 export interface EventsQueryParams {
   date_from?: string
