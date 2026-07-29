@@ -882,7 +882,7 @@ export default function Home() {
                     className={`w-full rounded-lg border px-2 py-1.5 text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                   >
                     <option value="">All Departments</option>
-                    {['IT Development','PA','Building Services','Finance','House Operations','Human Resources','Media & Marketing','B&P','Education & Family','Film','Language Center','Administration','Holiday Rentals','Special Events','Office of the President','Gallery','C&C','Talks','Other'].map(d => (
+                    {['IT','Development','PA','Building Services','Finance','House Operations','Human Resources','Media & Marketing','B&P','Education & Family','Film','Language Center','Administration','Holiday','Rentals','Special Events','Office of the President','Gallery','C&C','Talks','Other'].map(d => (
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </select>
