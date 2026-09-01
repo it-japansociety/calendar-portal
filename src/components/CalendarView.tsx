@@ -95,8 +95,12 @@ export default function CalendarView({ isDark, t }: { isDark: boolean, t: (key: 
     try {
       const all: CalendarEvent[] = []
       for (let page = 1; page <= 25; page++) {
+        // include_archived so past months still show their events (everything
+        // 7+ days old is auto-archived); rows archived BEFORE their event date
+        // were removed/trashed bookings and are filtered back out below.
         const params = new URLSearchParams({
           date_from: from, date_to: to, page_size: '200', page: String(page),
+          include_archived: 'true',
         })
         const res = await fetch(`/api/events?${params}`)
         if (!res.ok) break
@@ -104,7 +108,11 @@ export default function CalendarView({ isDark, t }: { isDark: boolean, t: (key: 
         all.push(...(json.data || []))
         if (all.length >= (json.pagination?.total ?? 0) || (json.data || []).length === 0) break
       }
-      setEvents(all)
+      // Auto-archived history stays visible; bookings archived before their
+      // event date (trashed or removed in JotForm) stay hidden.
+      setEvents(all.filter(ev =>
+        !ev.is_archived || (ev.archived_at != null && ev.archived_at >= ev.event_date)
+      ))
     } catch {
       fetchedRange.current = ''
     } finally {
