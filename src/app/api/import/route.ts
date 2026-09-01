@@ -100,8 +100,15 @@ async function handleImport(request: Request): Promise<Response> {
     while (true) {
       // Filter on updated_at so edits to existing submissions are picked up too
       // (JotForm sets updated_at on creation as well, so new submissions match).
-      const dateFilter = sinceDate
-        ? `&filter=${encodeURIComponent(JSON.stringify({ 'updated_at:gt': sinceDate }))}`
+      // JotForm's API-side date filter has proven unreliable: it appears to
+      // compare against a different clock than the timestamps it reports, and
+      // it has silently excluded fresh submissions from tight windows twice
+      // (Jul 13 and Aug 27, 2026). Pad the API-side window by 24 hours and let
+      // the exact client-side inWindow check below bound what gets written —
+      // upserts are idempotent, so over-fetching is harmless.
+      const apiSince = sinceDate ? padSinceDate(sinceDate, 24) : ''
+      const dateFilter = apiSince
+        ? `&filter=${encodeURIComponent(JSON.stringify({ 'updated_at:gt': apiSince }))}`
         : ''
       const res = await fetch(
         `https://api.jotform.com/form/${JOTFORM_FORM_ID}/submissions` +
@@ -226,6 +233,14 @@ async function handleImport(request: Request): Promise<Response> {
       ? `Dry run complete. Would have upserted ${upserted} and archived ${archivedInactive} inactive.`
       : `Import complete.`,
   })
+}
+
+// "YYYY-MM-DD HH:MM:SS" minus `hours`, same format. Falls back to the input
+// unchanged if it doesn't parse.
+function padSinceDate(since: string, hours: number): string {
+  const t = Date.parse(since.replace(' ', 'T') + 'Z')
+  if (Number.isNaN(t)) return since
+  return new Date(t - hours * 3600_000).toISOString().slice(0, 19).replace('T', ' ')
 }
 
 // Fetch every active submission ID from JotForm and ARCHIVE D1 rows that no longer
