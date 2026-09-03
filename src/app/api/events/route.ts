@@ -97,8 +97,10 @@ export async function GET(request: Request): Promise<Response> {
     // Non-fatal: stale events will just appear unarchived until the next write
   }
 
-  // Build dynamic WHERE clause
-  const conditions: string[] = [`is_archived = ${inclArchived ? 1 : 0}`]
+  // Build dynamic WHERE clause. include_archived=true means archived rows are
+  // INCLUDED alongside current ones (the calendar needs both to render history),
+  // not an archived-only view.
+  const conditions: string[] = [inclArchived ? '1=1' : 'is_archived = 0']
   const bindings: (string | number)[] = []
 
   if (dateFrom) { conditions.push('event_date >= ?'); bindings.push(dateFrom) }
