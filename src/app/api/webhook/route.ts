@@ -1,102 +1,22 @@
-import { getDB } from '@/lib/cloudflare'
-import { getCloudflareContext } from '@opennextjs/cloudflare'
-import { parseWebhookBody, mapAnswersToEvent } from '@/lib/jotform-parser'
+// Retired. The webhook receiver moved to /api/webhook/<secret> — the shared
+// secret is a path segment rather than a query parameter, because query
+// strings leak into access logs, proxies and Referer headers far more readily.
+// See src/app/api/webhook/[token]/route.ts for the live endpoint.
+//
+// This stub stays so that a stale JotForm configuration pointing at the old
+// URL fails loudly (410) instead of silently succeeding or 404-ing into the
+// Next.js catch-all.
 
-export async function POST(request: Request): Promise<Response> {
-  const url = new URL(request.url)
-
-  let expected = ''
-  try {
-    const { env } = await getCloudflareContext()
-    expected = (env as CloudflareEnv & { WEBHOOK_SECRET?: string }).WEBHOOK_SECRET || process.env.WEBHOOK_SECRET || ''
-  } catch {
-    expected = process.env.WEBHOOK_SECRET || ''
-  }
-
-  const token = url.searchParams.get('token')
-  if (!expected || !timingSafeEqual(token || '', expected)) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  let body: string
-  try {
-    body = await request.text()
-  } catch {
-    return Response.json({ error: 'Failed to read body' }, { status: 400 })
-  }
-
-  let submissionID: string
-  let event: ReturnType<typeof mapAnswersToEvent>
-  try {
-    const parsed = parseWebhookBody(body)
-    submissionID = parsed.submissionID
-    event = mapAnswersToEvent(parsed.answers)
-  } catch (err) {
-    console.error('Webhook parse error', err)
-    return Response.json({ error: 'Failed to parse submission' }, { status: 400 })
-  }
-
-  if (!submissionID) {
-    return Response.json({ error: 'Missing submissionID' }, { status: 400 })
-  }
-
-  try {
-    const db = await getDB()
-    await db
-      .prepare(`
-        INSERT INTO events (
-          event_name, department, location, event_date, day_of_week,
-          event_start, event_end, hold_start, hold_end, doors_open,
-          check_in_time, run_time, contact_name, email, phone,
-          description, attachment_url, status, count, jotform_id, submitted_at, updated_at
-        ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now')
-        )
-        ON CONFLICT(jotform_id) DO UPDATE SET
-          submitted_at  = COALESCE(events.submitted_at, excluded.submitted_at),
-          event_name    = excluded.event_name,
-          department    = excluded.department,
-          location      = excluded.location,
-          event_date    = excluded.event_date,
-          day_of_week   = excluded.day_of_week,
-          event_start   = excluded.event_start,
-          event_end     = excluded.event_end,
-          hold_start    = excluded.hold_start,
-          hold_end      = excluded.hold_end,
-          doors_open    = excluded.doors_open,
-          check_in_time = excluded.check_in_time,
-          run_time      = excluded.run_time,
-          contact_name  = excluded.contact_name,
-          email         = excluded.email,
-          phone         = excluded.phone,
-          description   = excluded.description,
-          attachment_url = excluded.attachment_url,
-          status        = excluded.status,
-          count         = excluded.count,
-          updated_at    = datetime('now')
-      `)
-      .bind(
-        event.event_name, event.department, event.location, event.event_date,
-        event.day_of_week, event.event_start, event.event_end, event.hold_start,
-        event.hold_end, event.doors_open, event.check_in_time, event.run_time,
-        event.contact_name, event.email, event.phone, event.description,
-        event.attachment_url, event.status, event.count, submissionID
-      )
-      .run()
-  } catch (err) {
-    console.error('D1 insert error', err)
-    return Response.json({ error: 'Database error' }, { status: 500 })
-  }
-
-  return Response.json({ success: true, submissionID })
+export async function POST(): Promise<Response> {
+  return Response.json(
+    { error: 'This webhook URL is retired. Re-point JotForm at /api/webhook/<secret>.' },
+    { status: 410 },
+  )
 }
 
-// Constant-time string comparison to prevent timing attacks on the token check.
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false
-  let diff = 0
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  }
-  return diff === 0
+export async function GET(): Promise<Response> {
+  return Response.json(
+    { error: 'This webhook URL is retired. Re-point JotForm at /api/webhook/<secret>.' },
+    { status: 410 },
+  )
 }
