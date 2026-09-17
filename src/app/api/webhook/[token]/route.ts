@@ -1,7 +1,10 @@
 import { getDB } from '@/lib/cloudflare'
 import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { parseWebhookBody, mapAnswersToEvent } from '@/lib/jotform-parser'
-import { EVENT_FORM_ID } from '@/lib/jotform-client'
+
+// The house calendar form. Declared here rather than imported so this route
+// has no dependency outside the files that ship with it.
+const EVENT_FORM_ID = '252113809267053'
 
 // JotForm webhook receiver. JotForm cannot sign its requests (confirmed with
 // their support), so this endpoint is secured three ways:
