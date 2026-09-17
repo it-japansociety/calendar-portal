@@ -2,7 +2,14 @@ name: Calendar Sync
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # Incremental sync every 15 minutes (new + edited submissions)
+    # Incremental sync (new + edited submissions). GitHub throttles scheduled
+    # workflows hard on shared runners — a '*/15' schedule measured an average
+    # gap of 193 min and a worst case of 294 min (Sep 2026). Requests landing on
+    # :00 and other round minutes queue behind everyone else's crons, so these
+    # deliberately sit on odd minutes. The real fix for latency is the JotForm
+    # webhook (/api/webhook), which pushes each submission within seconds; this
+    # schedule is the safety net that catches edits, deletions and misses.
+    - cron: '3,13,23,33,43,53 * * * *'
     - cron: '7 5 * * *'     # Daily reconcile at 05:07 UTC (archives rows no longer active in JotForm)
   workflow_dispatch:          # allows manual trigger from the GitHub Actions tab
     inputs:
