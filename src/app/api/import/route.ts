@@ -37,6 +37,7 @@ async function handleImport(request: Request): Promise<Response> {
     debug?: boolean
     since_date?: string
     reconcile?: boolean
+    log_changes?: boolean
   } = {}
   try {
     body = await request.json()
@@ -50,6 +51,9 @@ async function handleImport(request: Request): Promise<Response> {
   // Only sync submissions created OR EDITED after this datetime — catches both new
   // submissions and status/field updates to existing ones.
   const sinceDate = body.since_date || ''
+  // Change logging runs on incremental syncs (small, and where real edits
+  // appear). A full backfill skips it to stay inside the Worker's CPU budget.
+  const logChanges = body.log_changes === true || (!!sinceDate && body.log_changes !== false)
 
   // Debug mode: fetch first submission and return raw answer labels
   if (debugMode) {
@@ -183,7 +187,14 @@ async function handleImport(request: Request): Promise<Response> {
           // Read the current rows first so we can log what actually changed.
           // events.updated_at is stamped on every upsert regardless, so it can
           // never answer "what changed" — this diff can.
-          const changeStmts = await buildChangeLog(db!, chunk)
+          //
+          // Skipped on a full backfill: diffing all ~3,500 rows adds a SELECT
+          // and a second batch write per chunk, which pushed the Worker past
+          // its CPU limit (error 1102). A backfill is a repair operation that
+          // re-reads everything anyway, so its "changes" are noise; the
+          // incremental syncs are where real edits show up, and those are
+          // small. Pass log_changes:true to force it.
+          const changeStmts = logChanges ? await buildChangeLog(db!, chunk) : []
           changesLogged += changeStmts.length
 
           const stmts = chunk.map(sub => {
