@@ -77,11 +77,28 @@ async function handleImport(request: Request): Promise<Response> {
     }
   }
 
-  // Lightweight in-code migration: older deployments lack the submitted_at
-  // column (0002). ALTER is idempotent-by-guard — the duplicate-column error
-  // on every later run is expected and ignored.
+  // Lightweight in-code migrations: older deployments lack the submitted_at
+  // column (0002) and the event_changes table (0005). Both are guarded — the
+  // "already exists" error on every later run is expected and ignored.
   if (db) {
     try { await db.prepare('ALTER TABLE events ADD COLUMN submitted_at TEXT').run() } catch { /* already applied */ }
+    try {
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS event_changes (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          jotform_id  TEXT NOT NULL,
+          event_name  TEXT,
+          event_date  TEXT,
+          change_type TEXT NOT NULL,
+          field       TEXT,
+          old_value   TEXT,
+          new_value   TEXT,
+          detected_at TEXT DEFAULT (datetime('now'))
+        )
+      `).run()
+      await db.prepare('CREATE INDEX IF NOT EXISTS idx_changes_detected ON event_changes(detected_at)').run()
+      await db.prepare('CREATE INDEX IF NOT EXISTS idx_changes_jotform ON event_changes(jotform_id)').run()
+    } catch (err) { console.error('event_changes migration', err) }
   }
 
   // ── Reconcile mode: remove D1 rows whose submission no longer exists in JotForm ──
@@ -93,6 +110,7 @@ async function handleImport(request: Request): Promise<Response> {
   let upserted = 0
   let skipped = 0
   let archivedInactive = 0
+  let changesLogged = 0
   let offset = startOffset
   const limit = 100
 
@@ -161,6 +179,13 @@ async function handleImport(request: Request): Promise<Response> {
         // old INSERT OR REPLACE delete-and-reinsert.
         for (let i = 0; i < active.length; i += BATCH_SIZE) {
           const chunk = active.slice(i, i + BATCH_SIZE)
+
+          // Read the current rows first so we can log what actually changed.
+          // events.updated_at is stamped on every upsert regardless, so it can
+          // never answer "what changed" — this diff can.
+          const changeStmts = await buildChangeLog(db!, chunk)
+          changesLogged += changeStmts.length
+
           const stmts = chunk.map(sub => {
             const ev = mapAnswersToEvent(sub.answers)
             return db!.prepare(`
@@ -203,6 +228,9 @@ async function handleImport(request: Request): Promise<Response> {
           })
 
           if (stmts.length > 0) await db.batch(stmts)
+          // Log after the upsert succeeds, so the log never claims a change
+          // that failed to write.
+          if (changeStmts.length > 0) await db.batch(changeStmts)
           upserted += chunk.length
         }
       } else {
@@ -229,6 +257,7 @@ async function handleImport(request: Request): Promise<Response> {
     upserted,
     skipped,
     archived_inactive: archivedInactive,
+    changes_logged: changesLogged,
     message: dryRun
       ? `Dry run complete. Would have upserted ${upserted} and archived ${archivedInactive} inactive.`
       : `Import complete.`,
@@ -241,6 +270,76 @@ function padSinceDate(since: string, hours: number): string {
   const t = Date.parse(since.replace(' ', 'T') + 'Z')
   if (Number.isNaN(t)) return since
   return new Date(t - hours * 3600_000).toISOString().slice(0, 19).replace('T', ' ')
+}
+
+// Fields worth reporting on. Deliberately excludes noise (day_of_week is
+// derived from event_date; attachment_url churns on JotForm's signed links).
+const TRACKED_FIELDS = [
+  'event_name', 'event_date', 'event_start', 'event_end',
+  'hold_start', 'hold_end', 'location', 'department', 'status',
+  'contact_name', 'email', 'phone', 'description', 'count',
+  'doors_open', 'check_in_time', 'run_time',
+] as const
+
+type ExistingRow = Record<string, string | number | null>
+
+// Compare each incoming submission against the row already in D1 and return
+// INSERT statements describing the real differences — one per changed field,
+// plus a single 'created' row for submissions we have never seen.
+async function buildChangeLog(
+  db: D1Database,
+  chunk: JotFormSubmission[],
+): Promise<D1PreparedStatement[]> {
+  if (chunk.length === 0) return []
+
+  const ids = chunk.map(s => s.id)
+  let existing: ExistingRow[] = []
+  try {
+    const res = await db.prepare(`
+      SELECT jotform_id, ${TRACKED_FIELDS.join(', ')}
+      FROM events WHERE jotform_id IN (${ids.map(() => '?').join(', ')})
+    `).bind(...ids).all()
+    existing = (res.results || []) as unknown as ExistingRow[]
+  } catch (err) {
+    // A missing event_changes table or a schema mismatch must never break the
+    // sync itself — reporting is strictly secondary to mirroring.
+    console.error('Change detection skipped', err)
+    return []
+  }
+
+  const byId = new Map<string, ExistingRow>()
+  for (const row of existing) byId.set(String(row.jotform_id), row)
+
+  const stmts: D1PreparedStatement[] = []
+  const norm = (v: unknown) => (v === null || v === undefined || v === '' ? '' : String(v))
+
+  for (const sub of chunk) {
+    const ev = mapAnswersToEvent(sub.answers) as unknown as Record<string, unknown>
+    const prev = byId.get(sub.id)
+
+    if (!prev) {
+      stmts.push(db.prepare(`
+        INSERT INTO event_changes (jotform_id, event_name, event_date, change_type)
+        VALUES (?, ?, ?, 'created')
+      `).bind(sub.id, String(ev.event_name ?? ''), String(ev.event_date ?? '')))
+      continue
+    }
+
+    for (const field of TRACKED_FIELDS) {
+      const before = norm(prev[field])
+      const after = norm(ev[field])
+      if (before === after) continue
+      stmts.push(db.prepare(`
+        INSERT INTO event_changes
+          (jotform_id, event_name, event_date, change_type, field, old_value, new_value)
+        VALUES (?, ?, ?, 'updated', ?, ?, ?)
+      `).bind(
+        sub.id, String(ev.event_name ?? ''), String(ev.event_date ?? ''),
+        field, before, after,
+      ))
+    }
+  }
+  return stmts
 }
 
 // Fetch every active submission ID from JotForm and ARCHIVE D1 rows that no longer

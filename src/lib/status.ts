@@ -10,17 +10,46 @@ export function isAllDay(start?: string | null, end?: string | null): boolean {
 // Only a Confirmed booking firmly occupies a space; Pending/Contingent/TBD are
 // tentative (contested, not yet decided); Released and Cancelled are ignored
 // (and archived events are filtered out upstream).
-export function isConfirmedStatus(s?: string | null): boolean {
-  return (s || '').toLowerCase().trim() === 'confirmed'
+//
+// IMPORTANT: the Status field in JotForm is free-form in practice. Staff type
+// their own variants — 89 live bookings read "Confirmed - Function Form
+// Recieved" (sic). Exact-equality matching classified those as NEITHER
+// confirmed NOR tentative, so the availability checker reported the rooms as
+// FREE while they were in fact confirmed — a double-booking waiting to happen.
+// These matchers therefore look for the status WORD anywhere in the value, and
+// order matters: cancelled and released are checked before confirmed so that
+// a value like "Confirmed then released" resolves to released, not confirmed.
+
+function norm(s?: string | null): string {
+  return (s || '').toLowerCase().trim()
 }
-export function isTentativeStatus(s?: string | null): boolean {
-  return ['pending', 'contingent', 'tbd'].includes((s || '').toLowerCase().trim())
+
+export function isCancelledStatus(s?: string | null): boolean {
+  return /\bcancel/.test(norm(s))
 }
 export function isReleasedStatus(s?: string | null): boolean {
-  return (s || '').toLowerCase().trim() === 'released'
+  return !isCancelledStatus(s) && /\breleas/.test(norm(s))
 }
-export function isCancelledStatus(s?: string | null): boolean {
-  return (s || '').toLowerCase().trim() === 'cancelled'
+export function isConfirmedStatus(s?: string | null): boolean {
+  const v = norm(s)
+  if (isCancelledStatus(v) || isReleasedStatus(v)) return false
+  return /\bconfirm/.test(v)
+}
+export function isTentativeStatus(s?: string | null): boolean {
+  const v = norm(s)
+  if (!v) return false
+  if (isCancelledStatus(v) || isReleasedStatus(v) || isConfirmedStatus(v)) return false
+  return /\b(pending|contingent|tbd|hold|tentative)\b/.test(v)
+}
+
+// Any status that isn't recognised at all. Such a booking still occupies its
+// room — treating it as free is the dangerous failure — so callers bucket it
+// as tentative, and /api/changes surfaces it so the wording can be corrected.
+export function isUnrecognisedStatus(s?: string | null): boolean {
+  const v = norm(s)
+  if (!v) return false
+  return !isCancelledStatus(v) && !isReleasedStatus(v)
+    && !isConfirmedStatus(v) && !isTentativeStatus(v)
 }
 
 // A "walls only" booking (marked in its public description, e.g. the JSSP student
