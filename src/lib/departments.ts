@@ -20,11 +20,56 @@ export const DEPT_COLORS: Record<string, DeptColor> = {
 
 export const DEPT_FALLBACK: DeptColor = { bg: '#E5E7EB', text: '#1f2937', border: '#9ca3af' }
 
+// Department values drift, so the same department reaches us under several
+// spellings. The form's labels were abbreviated at some point — Performing
+// Arts became PA, Business & Policy became B&P, Culture & Community became
+// C&C — and submissions made before that still carry the long form. HOLIDAY
+// is also typed in caps about as often as not.
+//
+// Looking colors up on the exact string left every one of those rows gray:
+// 11 active HOLIDAY bookings rendered neutral instead of the red the color
+// sheet calls for, and the long-form stragglers lost their swatch entirely.
+// Resolve to a canonical name first, the way rooms.ts resolves room aliases.
+const CANONICAL_BY_LOWER = new Map(
+  Object.keys(DEPT_COLORS).map(k => [k.toLowerCase(), k] as const),
+)
+
+// Long-form labels that predate the abbreviations on the form.
+const DEPT_ALIASES: Record<string, string> = {
+  'performing arts':     'PA',
+  'business & policy':   'B&P',
+  'business and policy': 'B&P',
+  'culture & community': 'C&C',
+  'culture and community': 'C&C',
+  'education and family': 'Education & Family',
+}
+
+// The name a department should be grouped and colored under. Unknown values
+// are returned trimmed but otherwise untouched, so a department nobody has
+// mapped yet still reads correctly — it just gets the fallback swatch.
+export function canonicalDept(department?: string | null): string {
+  const value = (department || '').trim()
+  if (!value) return ''
+  const key = value.toLowerCase().replace(/\s+/g, ' ')
+  return DEPT_ALIASES[key] || CANONICAL_BY_LOWER.get(key) || value
+}
+
+// Every distinct department in a comma-joined value, canonicalised.
+// "Development, Performing Arts" -> ["Development", "PA"]
+export function deptsIn(department?: string | null): string[] {
+  const seen = new Set<string>()
+  for (const part of (department || '').split(',')) {
+    const name = canonicalDept(part)
+    if (name) seen.add(name)
+  }
+  return [...seen]
+}
+
 // D1 stores multi-select departments comma-joined ("Education & Family, PA");
 // color by the first one that has an assigned swatch.
 export function deptColorFor(department?: string | null): DeptColor {
   if (!department) return DEPT_FALLBACK
-  for (const part of department.split(',').map(s => s.trim())) {
+  for (const part of deptsIn(department)) {
     if (DEPT_COLORS[part]) return DEPT_COLORS[part]
   }
   return DEPT_FALLBACK
