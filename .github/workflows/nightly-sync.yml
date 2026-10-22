@@ -47,9 +47,21 @@ jobs:
             # JotForm's created_at/updated_at are in the account's local timezone
             # (America/New_York), NOT UTC — computing this window in UTC put it
             # 4-5 hours in JotForm's future and every incremental sync matched
-            # nothing. The wider 6-hour window is a DST/throttling safety margin;
-            # overlap is harmless because the import upserts idempotently.
-            SINCE=$(TZ=America/New_York date -d "6 hours ago" +"%Y-%m-%d %H:%M:%S")
+            # nothing.
+            #
+            # The window MUST be wider than the worst gap between runs, or an
+            # edit made during a gap is missed permanently: the next run's
+            # window starts after the edit, so nothing ever looks at it again.
+            # This was 6 hours while GitHub's throttling put 18 of 32 measured
+            # gaps ABOVE 6 hours (worst: 83). Real edits were lost that way —
+            # two Kedagoro submissions renamed in JotForm on 2026-10-05 at
+            # 08:58 still read "Kedagoro" in the portal 17 days later, because
+            # no run landed within 6 hours of the edit.
+            #
+            # 7 days covers the worst observed gap twenty times over. Over-
+            # fetching costs only JotForm API calls: upserts are idempotent and
+            # the change log records a row only when a value actually differs.
+            SINCE=$(TZ=America/New_York date -d "7 days ago" +"%Y-%m-%d %H:%M:%S")
             PAYLOAD="{\"dry_run\": false, \"since_date\": \"$SINCE\"}"
             echo "Running incremental sync since $SINCE"
           fi

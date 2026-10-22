@@ -169,11 +169,18 @@ async function handleImport(request: Request): Promise<Response> {
         : submissions
       skipped += submissions.length - inWindow.length
 
-      // Submissions no longer active in JotForm (trashed or archived there — the API
-      // reports both as status DELETED) are kept in D1 for historical reference:
-      // marked archived, never removed.
-      const inactive = inWindow.filter(s => s.status === 'DELETED')
-      const active   = inWindow.filter(s => s.status !== 'DELETED')
+      // Submissions no longer active in JotForm are kept in D1 for historical
+      // reference: marked archived, never removed.
+      //
+      // JotForm reports THREE statuses, not two: ACTIVE, ARCHIVED and DELETED.
+      // This used to test for DELETED alone, on the assumption that archiving a
+      // submission in JotForm also reported it as DELETED. It does not. Every
+      // submission archived in JotForm Tables stayed is_archived = 0 here and
+      // went on blocking its room in the availability checker — e.g. Kedagoro
+      // on 2026-10-31, ARCHIVED in JotForm, still holding AUD + FOY in the
+      // portal. Anything that is not ACTIVE is inactive.
+      const inactive = inWindow.filter(s => s.status !== 'ACTIVE')
+      const active   = inWindow.filter(s => s.status === 'ACTIVE')
 
       if (!dryRun && db) {
         if (inactive.length > 0) {
@@ -385,7 +392,9 @@ async function reconcile(apiKey: string, db: D1Database | undefined, dryRun: boo
     const json = await res.json() as { content: JotFormSubmission[] }
     const subs = json.content || []
     for (const s of subs) {
-      if (s.status !== 'DELETED') remoteIds.add(s.id)
+      // ACTIVE only: ARCHIVED and DELETED both mean the submission is no longer
+      // live in JotForm, and a row that stays in this set is never archived here.
+      if (s.status === 'ACTIVE') remoteIds.add(s.id)
     }
     if (subs.length < limit) break
     offset += limit
