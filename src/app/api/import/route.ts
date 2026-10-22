@@ -38,6 +38,7 @@ async function handleImport(request: Request): Promise<Response> {
     since_date?: string
     reconcile?: boolean
     log_changes?: boolean
+    max_pages?: number
   } = {}
   try {
     body = await request.json()
@@ -54,6 +55,12 @@ async function handleImport(request: Request): Promise<Response> {
   // Change logging runs on incremental syncs (small, and where real edits
   // appear). A full backfill skips it to stay inside the Worker's CPU budget.
   const logChanges = body.log_changes === true || (!!sinceDate && body.log_changes !== false)
+  // Stop after this many pages of 100 and report where to resume. A full
+  // re-read of every submission WITH change logging is the only way to find
+  // drift that JotForm never reported as an edit, but doing it in one request
+  // exceeds the Worker CPU limit (error 1102). Slicing lets the audit walk the
+  // whole form across several requests, each well inside budget.
+  const maxPages = Math.max(0, body.max_pages || 0)
 
   // Debug mode: fetch first submission and return raw answer labels
   if (debugMode) {
@@ -116,6 +123,8 @@ async function handleImport(request: Request): Promise<Response> {
   let archivedInactive = 0
   let changesLogged = 0
   let offset = startOffset
+  let pagesDone = 0
+  let exhausted = true
   const limit = 100
 
   try {
@@ -252,6 +261,9 @@ async function handleImport(request: Request): Promise<Response> {
 
       if (submissions.length < limit) break
       offset += limit
+      pagesDone++
+      // Budget spent for this request — hand the caller the resume point.
+      if (maxPages > 0 && pagesDone >= maxPages) { exhausted = false; break }
     }
   } catch (err) {
     console.error('Import error', err)
@@ -269,6 +281,8 @@ async function handleImport(request: Request): Promise<Response> {
     skipped,
     archived_inactive: archivedInactive,
     changes_logged: changesLogged,
+    // Null once the form is fully walked; otherwise the offset to pass back in.
+    next_offset: exhausted ? null : offset,
     message: dryRun
       ? `Dry run complete. Would have upserted ${upserted} and archived ${archivedInactive} inactive.`
       : `Import complete.`,

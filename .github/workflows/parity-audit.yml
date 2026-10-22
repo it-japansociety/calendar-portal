@@ -1,0 +1,122 @@
+name: Parity Audit
+
+# Re-reads EVERY JotForm submission and rewrites the D1 mirror from it, with
+# change logging forced on, so every field that had drifted is recorded as a
+# before/after row in event_changes.
+#
+# Why this exists: the incremental sync only ever sees submissions whose
+# updated_at JotForm has moved. An edit JotForm does not report that way —
+# notably an inline cell edit in JotForm Tables — is invisible to it forever,
+# and the mirror keeps the old value with no error anywhere. The nightly
+# parity check only proves the NEWEST submission exists; it says nothing about
+# the other ~3,600 rows' field values. This job is the thing that can.
+#
+# Runs weekly, and on demand. Walks the form in slices because a full re-read
+# with diffing in one request exceeds the Worker CPU limit (error 1102).
+
+on:
+  schedule:
+    - cron: '41 6 * * 1'    # Mondays 06:41 UTC
+  workflow_dispatch:
+    inputs:
+      pages_per_slice:
+        description: 'Pages of 100 submissions per request. Lower this if a slice hits the Worker CPU limit.'
+        type: string
+        default: '5'
+      max_slices:
+        description: 'Stop after this many slices (0 = walk the whole form). Set to 1 for a cautious first run, then check /api/changes before running it fully.'
+        type: string
+        default: '0'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Re-read every submission and log what had drifted
+        run: |
+          PORTAL=https://calendar-portal.japan-society-account.workers.dev
+          PAGES="${{ inputs.pages_per_slice }}"
+          PAGES="${PAGES:-5}"
+          MAX_SLICES="${{ inputs.max_slices }}"
+          MAX_SLICES="${MAX_SLICES:-0}"
+
+          OFFSET=0
+          SLICE=0
+          TOTAL_CHANGES=0
+          TOTAL_ROWS=0
+          # Restore point. This job rewrites rows from JotForm, which cannot be
+          # undone with git. D1 Time Travel can restore the database to any
+          # minute in the last 30 days, so record where we started.
+          START=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "Audit started at $START — D1 restore point if this needs undoing"
+
+          while : ; do
+            SLICE=$((SLICE + 1))
+            if [ "$SLICE" -gt 60 ]; then
+              echo "::error::Audit did not finish in 60 slices — aborting rather than looping"
+              exit 1
+            fi
+
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$PORTAL/api/import" \
+              -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
+              -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
+              -H "Authorization: Bearer ${{ secrets.JOTFORM_API_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"dry_run\": false, \"log_changes\": true, \"offset\": $OFFSET, \"max_pages\": $PAGES}")
+
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | head -n-1)
+
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "::error::Audit slice at offset $OFFSET failed with status $HTTP_CODE: $BODY"
+              exit 1
+            fi
+
+            ROWS=$(echo "$BODY" | jq -r '.upserted // 0')
+            CHANGES=$(echo "$BODY" | jq -r '.changes_logged // 0')
+            NEXT=$(echo "$BODY" | jq -r '.next_offset // "null"')
+            TOTAL_ROWS=$((TOTAL_ROWS + ROWS))
+            TOTAL_CHANGES=$((TOTAL_CHANGES + CHANGES))
+            echo "slice $SLICE (offset $OFFSET): $ROWS rows, $CHANGES drifted fields"
+
+            if [ "$NEXT" = "null" ] || [ -z "$NEXT" ]; then break; fi
+            if [ "$MAX_SLICES" -gt 0 ] && [ "$SLICE" -ge "$MAX_SLICES" ]; then
+              echo "Stopping after $SLICE slice(s) as requested — resume from offset $NEXT"
+              break
+            fi
+            OFFSET=$NEXT
+          done
+
+          echo "AUDIT_ROWS=$TOTAL_ROWS" >> "$GITHUB_ENV"
+          echo "AUDIT_CHANGES=$TOTAL_CHANGES" >> "$GITHUB_ENV"
+          echo "AUDIT_START=$START" >> "$GITHUB_ENV"
+
+          {
+            echo "## Parity audit"
+            echo ""
+            echo "- Submissions re-read: **$TOTAL_ROWS**"
+            echo "- Fields that had drifted from JotForm: **$TOTAL_CHANGES**"
+            echo "- D1 restore point (before any write): \`$START\`"
+            echo ""
+            if [ "$TOTAL_CHANGES" -eq 0 ]; then
+              echo "The mirror matched JotForm exactly. Nothing had been missed."
+            else
+              echo "Those $TOTAL_CHANGES fields were stale in the portal and have now been corrected."
+              echo "Each one is recorded with its before and after value."
+              echo ""
+              echo "See \`/api/changes?format=text&days=1\` for the detail."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Flag drift the incremental sync should have caught
+        run: |
+          # Any drift found here is, by definition, an edit the every-10-minutes
+          # sync never saw. A handful is normal (edits landing mid-audit). A large
+          # number means the pipeline is missing a whole class of change, which is
+          # the failure mode this job exists to make loud.
+          if [ "${AUDIT_CHANGES:-0}" -gt 25 ]; then
+            echo "::warning::Parity audit corrected $AUDIT_CHANGES fields that the incremental sync never saw. JotForm Tables inline edits do not move updated_at, so the polling sync cannot detect them — the audit is currently the only thing that does."
+          fi
+          echo "Audit complete: ${AUDIT_ROWS:-0} rows re-read, ${AUDIT_CHANGES:-0} fields corrected."
