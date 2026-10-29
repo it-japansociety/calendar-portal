@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { Fragment, useRef, useState, useEffect, useCallback } from 'react'
 import { translations } from '../utils/translations'
 import { ROOM_NAMES, roomsInLocation } from '../lib/rooms'
 import {
@@ -48,6 +48,11 @@ export default function Home() {
 
   // Events DB state
   const [eventsData, setEventsData] = useState<CalendarEvent[]>([])
+  // Which table row is opened out to its full detail panel. One at a time,
+  // so the table does not turn into a wall of stacked panels when someone
+  // works down a day looking for the booking they want.
+  const [openRow, setOpenRow] = useState<number | null>(null)
+  const tableScrollRef = useRef<HTMLDivElement>(null)
   const [eventsPagination, setEventsPagination] = useState({ page: 1, page_size: 50, total: 0 })
   const [eventsLoading, setEventsLoading] = useState(false)
   const [eventsFilters, setEventsFilters] = useState({
@@ -922,7 +927,7 @@ export default function Home() {
                   No events found. Adjust filters or check back after syncing data.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto" ref={tableScrollRef}>
                   <table className="w-full text-sm min-w-[900px]">
                     <thead>
                       <tr className={isDark ? 'bg-gray-700/60' : 'bg-gray-50'}>
@@ -962,13 +967,32 @@ export default function Home() {
                       </tr>
                     </thead>
                     <tbody>
-                      {eventsData.map((ev, i) => (
-                        <tr key={ev.id}
-                          className={`border-t transition-colors ${
+                      {eventsData.map((ev, i) => {
+                        const isOpen = openRow === ev.id
+                        const toggle = () => setOpenRow(prev => {
+                          const next = prev === ev.id ? null : ev.id
+                          // The table scrolls sideways; the detail panel starts at the
+                          // far left. Opening a row while scrolled right otherwise looks
+                          // like nothing happened.
+                          if (next !== null) tableScrollRef.current?.scrollTo({ left: 0, behavior: 'smooth' })
+                          return next
+                        })
+                        return (
+                        <Fragment key={ev.id}>
+                        <tr
+                          onClick={toggle}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle() }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-expanded={isOpen}
+                          title="Click to open this booking in full"
+                          className={`border-t transition-colors cursor-pointer ${
                             isDark
                               ? `border-gray-700 ${i % 2 === 0 ? '' : 'bg-gray-700/20'} hover:bg-gray-700/40`
                               : `border-gray-100 ${i % 2 === 0 ? '' : 'bg-gray-50/50'} hover:bg-red-50/30`
-                          } ${ev.status === 'Cancelled' ? 'opacity-50' : ''}`}
+                          } ${isOpen ? (isDark ? 'bg-gray-700/50' : 'bg-red-50/50') : ''} ${ev.status === 'Cancelled' ? 'opacity-50' : ''}`}
                         >
                           <td className={`px-4 py-3 whitespace-nowrap text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
                             title={ev.submitted_at || undefined}>
@@ -1017,13 +1041,25 @@ export default function Home() {
                           </td>
                           <td className={`px-4 py-3 max-w-[220px] text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
                             title={ev.description || undefined}>
+                            {/* Stays clamped even when the row is open — the detail panel
+                                below prints the note in full, and expanding here as well
+                                stretched the row to several hundred pixels. */}
                             <span className="line-clamp-2">{ev.description || '—'}</span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <StatusBadge status={ev.status} />
                           </td>
                         </tr>
-                      ))}
+                        {isOpen && (
+                          <tr className={isDark ? 'bg-gray-700/30' : 'bg-red-50/30'}>
+                            <td colSpan={12} className="px-4 pt-0 pb-4">
+                              <EventDetail ev={ev} isDark={isDark} />
+                            </td>
+                          </tr>
+                        )}
+                        </Fragment>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1153,6 +1189,75 @@ function StatusBadge({ status }: { status: string }) {
     <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${colours[status] || colours.Other}`}>
       {status}
     </span>
+  )
+}
+
+// The panel a table row opens into. The Notes column is clamped to two lines so
+// the table stays scannable, which meant a long note ("Japanese: 12:00-…") could
+// only be read by hovering for a tooltip — unusable on touch, and invisible to
+// anyone who did not know to try. Clicking a row prints the note in full here,
+// alongside the contact and run-of-show fields that have nowhere else to show.
+function EventDetail({ ev, isDark }: { ev: CalendarEvent; isDark: boolean }) {
+  const label = isDark ? 'text-gray-400' : 'text-gray-500'
+  const value = isDark ? 'text-gray-200' : 'text-gray-800'
+
+  const facts: { label: string; value: string | null }[] = [
+    { label: 'Rooms',      value: ev.location },
+    { label: 'Department', value: ev.department },
+    { label: 'Hold',       value: ev.hold_start ? `${formatTime12(ev.hold_start)}–${formatTime12(ev.hold_end)}` : null },
+    { label: 'Doors open', value: ev.doors_open },
+    { label: 'Check-in',   value: ev.check_in_time },
+    { label: 'Run time',   value: ev.run_time },
+    { label: 'Headcount',  value: ev.count != null ? String(ev.count) : null },
+    { label: 'Submitted',  value: ev.submitted_at },
+  ]
+  const shown = facts.filter(f => f.value && f.value !== 'n/a')
+
+  return (
+    // The cell spans all 12 columns, so without a cap the panel is as wide as the
+    // table (~1,600px) and its text runs off the right of a phone screen instead
+    // of wrapping. Hold it to what is actually visible.
+    <div
+      className={`rounded-xl border p-4 ${isDark ? 'border-gray-600 bg-gray-800/60' : 'border-red-100 bg-white'}`}
+      style={{ maxWidth: 'calc(100vw - 4rem)' }}
+    >
+      <p className={`text-xs font-semibold uppercase tracking-wide ${label}`}>Notes</p>
+      {/* whitespace-pre-wrap: these notes are typed into a JotForm textarea and
+          carry their own line breaks, which collapse to one run-on line without it. */}
+      <p className={`mt-1 text-sm whitespace-pre-wrap break-words ${ev.description ? value : label}`}>
+        {ev.description || 'No notes on this booking.'}
+      </p>
+
+      <div className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <p className={`text-xs font-semibold uppercase tracking-wide ${label}`}>Contact</p>
+          <p className={`mt-0.5 text-sm ${value}`}>{ev.contact_name || '—'}</p>
+          {ev.email && (
+            <a href={`mailto:${ev.email}`} onClick={e => e.stopPropagation()}
+              className="text-sm text-red-600 hover:underline dark:text-red-400 break-all">
+              {ev.email}
+            </a>
+          )}
+          {ev.phone && <p className={`text-sm ${value}`}>{ev.phone}</p>}
+        </div>
+        {shown.map(f => (
+          <div key={f.label}>
+            <p className={`text-xs font-semibold uppercase tracking-wide ${label}`}>{f.label}</p>
+            <p className={`mt-0.5 text-sm break-words ${value}`}>{f.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {ev.attachment_url && (
+        <a
+          href={ev.attachment_url} target="_blank" rel="noopener noreferrer"
+          onClick={e => e.stopPropagation()}
+          className="mt-4 inline-block text-sm text-red-600 hover:underline dark:text-red-400"
+        >
+          Function form (opens in JotForm) →
+        </a>
+      )}
+    </div>
   )
 }
 
