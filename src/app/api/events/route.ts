@@ -32,17 +32,33 @@ function csvField(val: unknown): string {
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
+// Column order is the one the box office works in on paper: when, who owns it,
+// what it is, the times, then the room, then who to call. Location sits after
+// the hold times rather than next to the event name — a room only means
+// something once you know the window it is held for.
+//
+// Email, Phone and Notes are not part of that running order; they are kept on
+// the end so the export stays lossless for anyone who needs them.
+const CSV_COLUMNS: { label: string; value: (ev: CalendarEvent) => unknown }[] = [
+  { label: 'Date',       value: ev => ev.event_date },
+  { label: 'Day',        value: ev => ev.day_of_week },
+  { label: 'Department', value: ev => ev.department },
+  { label: 'Event Name', value: ev => ev.event_name },
+  { label: 'Start',      value: ev => csvTime(ev.event_start) },
+  { label: 'End',        value: ev => csvTime(ev.event_end) },
+  { label: 'Hold Start', value: ev => csvTime(ev.hold_start) },
+  { label: 'Hold End',   value: ev => csvTime(ev.hold_end) },
+  { label: 'Location',   value: ev => ev.location },
+  { label: 'Contact',    value: ev => ev.contact_name },
+  { label: 'Status',     value: ev => ev.status },
+  { label: 'Email',      value: ev => ev.email },
+  { label: 'Phone',      value: ev => ev.phone },
+  { label: 'Notes',      value: ev => ev.description },
+]
+
 function toCSV(rows: CalendarEvent[]): string {
-  const header = [
-    'Date', 'Day', 'Event Name', 'Location', 'Department',
-    'Start', 'End', 'Hold Start', 'Hold End',
-    'Contact', 'Email', 'Phone', 'Status', 'Description',
-  ]
-  const lines = rows.map(ev => [
-    ev.event_date, ev.day_of_week, ev.event_name, ev.location, ev.department,
-    csvTime(ev.event_start), csvTime(ev.event_end), csvTime(ev.hold_start), csvTime(ev.hold_end),
-    ev.contact_name, ev.email, ev.phone, ev.status, ev.description,
-  ].map(csvField).join(','))
+  const header = CSV_COLUMNS.map(c => c.label)
+  const lines = rows.map(ev => CSV_COLUMNS.map(c => c.value(ev)).map(csvField).join(','))
   // BOM so Excel opens UTF-8 correctly
   const BOM = String.fromCharCode(0xfeff)
   return BOM + [header.map(csvField).join(','), ...lines].join('\r\n')
