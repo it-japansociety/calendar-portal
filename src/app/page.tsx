@@ -143,12 +143,17 @@ export default function Home() {
   }, [buildEventsParams, eventsFilters.page])
 
   // Downloads every row matching the current filters as a CSV (opens in Excel)
-  const exportCSV = useCallback(() => {
+  // Downloads whatever the filters currently select. Excel by default: a CSV
+  // cannot carry column widths or wrapping, so it always opened with 8-character
+  // columns, dates as ###### and a 500px-tall row wherever a booking's notes had
+  // line breaks. CSV is still available for anything that reads the file rather
+  // than looks at it.
+  const exportSheet = useCallback((format: 'xlsx' | 'csv') => {
     const params = buildEventsParams()
-    params.set('format', 'csv')
+    params.set('format', format)
     const a = document.createElement('a')
     a.href = `/api/events?${params}`
-    a.download = 'events-export.csv'
+    a.download = `events-export.${format}`
     document.body.appendChild(a)
     a.click()
     a.remove()
@@ -823,13 +828,22 @@ export default function Home() {
                   </button>
                 )}
                 <button
-                  onClick={exportCSV}
-                  title="Download the current filtered results as a CSV file (opens in Excel)"
+                  onClick={() => exportSheet('xlsx')}
+                  title="Download the current filtered results as an Excel file"
                   className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
                     isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  ⬇ Export CSV
+                  ⬇ Export Excel
+                </button>
+                <button
+                  onClick={() => exportSheet('csv')}
+                  title="Download the current filtered results as a plain CSV file"
+                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  CSV
                 </button>
               </div>
               <div className="mb-3">
