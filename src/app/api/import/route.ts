@@ -7,10 +7,28 @@ const BATCH_SIZE = 100
 
 type JotFormSubmission = {
   id: string
-  status?: string       // ACTIVE | DELETED (JotForm reports trashed/archived submissions as DELETED)
+  status?: string       // ACTIVE | ARCHIVED | DELETED | CUSTOM — see isRetired()
   created_at?: string   // "YYYY-MM-DD HH:MM:SS"
   updated_at?: string | null
   answers: JotFormAnswers
+}
+
+// Whether JotForm considers a submission retired — trashed or archived there,
+// and therefore no longer a live booking.
+//
+// This is a DENY-list on purpose. JotForm reports at least four statuses:
+// ACTIVE, ARCHIVED, DELETED and CUSTOM (a submission someone has flagged in
+// JotForm Tables). Testing `status !== 'ACTIVE'` looked equivalent and was not:
+// it swept up CUSTOM as well and archived live bookings out of the portal.
+// Mieko Kawakami on 2026-11-10 — Confirmed, function form received, holding
+// AUD + MUR + SONY + FOY from 3pm to 11pm — disappeared from the calendar that
+// way, and the availability checker then reported those four rooms free for
+// the evening. Reporting a booked room as free is the one failure that can
+// double-book the house, so anything unrecognised is treated as live.
+const RETIRED_STATUSES = new Set(['ARCHIVED', 'DELETED', 'TRASHED'])
+
+function isRetired(status?: string | null): boolean {
+  return RETIRED_STATUSES.has((status || '').toUpperCase())
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -169,18 +187,10 @@ async function handleImport(request: Request): Promise<Response> {
         : submissions
       skipped += submissions.length - inWindow.length
 
-      // Submissions no longer active in JotForm are kept in D1 for historical
+      // Submissions no longer live in JotForm are kept in D1 for historical
       // reference: marked archived, never removed.
-      //
-      // JotForm reports THREE statuses, not two: ACTIVE, ARCHIVED and DELETED.
-      // This used to test for DELETED alone, on the assumption that archiving a
-      // submission in JotForm also reported it as DELETED. It does not. Every
-      // submission archived in JotForm Tables stayed is_archived = 0 here and
-      // went on blocking its room in the availability checker — e.g. Kedagoro
-      // on 2026-10-31, ARCHIVED in JotForm, still holding AUD + FOY in the
-      // portal. Anything that is not ACTIVE is inactive.
-      const inactive = inWindow.filter(s => s.status !== 'ACTIVE')
-      const active   = inWindow.filter(s => s.status === 'ACTIVE')
+      const inactive = inWindow.filter(s => isRetired(s.status))
+      const active   = inWindow.filter(s => !isRetired(s.status))
 
       if (!dryRun && db) {
         if (inactive.length > 0) {
@@ -392,9 +402,9 @@ async function reconcile(apiKey: string, db: D1Database | undefined, dryRun: boo
     const json = await res.json() as { content: JotFormSubmission[] }
     const subs = json.content || []
     for (const s of subs) {
-      // ACTIVE only: ARCHIVED and DELETED both mean the submission is no longer
-      // live in JotForm, and a row that stays in this set is never archived here.
-      if (s.status === 'ACTIVE') remoteIds.add(s.id)
+      // Anything not retired counts as live. A row left out of this set gets
+      // archived, so an unrecognised status must never fall through to "gone".
+      if (!isRetired(s.status)) remoteIds.add(s.id)
     }
     if (subs.length < limit) break
     offset += limit
