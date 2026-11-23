@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
 
 @layer base {
   html {
@@ -205,4 +205,258 @@
 }
 .js-cal-dark .fc .fc-more-popover .fc-popover-header {
   background: #374151;
+}
+
+
+/* ══ Calendar Portal design system (from "Design Calendar", Sep 2026) ═══════
+   Vermilion #F01E37 · Ink #1F1F28 · Paper #F8F7F4 · dept hues · blur 18px.
+   Serif display + sans UI, centre nav pill, diamond kickers, pills everywhere. */
+
+:root {
+  --jsp-red: #F01E37;
+  --jsp-red-deep: #C4162B;
+  --jsp-ink: #1F1F28;
+  --jsp-paper: #F8F7F4;
+  --jsp-muted: #6B6B76;
+  --jsp-line: rgba(31, 31, 40, 0.10);
+  --jsp-card: #FFFFFF;
+  --jsp-surface: rgba(255, 255, 255, 0.72);
+
+  --jsp-gold: #D9A52E;
+  --jsp-orange: #DD6C26;
+  --jsp-salmon: #E09A70;
+  --jsp-pink: #DD549E;
+  --jsp-green: #57B476;
+  --jsp-blue: #6BA1E4;
+}
+
+.dark {
+  --jsp-ink: #F2F1EE;
+  --jsp-paper: #15151B;
+  --jsp-muted: #9A9AA6;
+  --jsp-line: rgba(255, 255, 255, 0.12);
+  --jsp-card: #1F1F28;
+  --jsp-surface: rgba(31, 31, 40, 0.72);
+}
+
+/* Warm gradient wash + seigaiha waves — the portal's ground */
+.jsp-bg {
+  background:
+    radial-gradient(900px 420px at 12% -5%, rgba(240, 30, 55, 0.09), transparent 62%),
+    radial-gradient(760px 380px at 88% 4%, rgba(224, 154, 112, 0.12), transparent 60%),
+    radial-gradient(700px 420px at 50% 100%, rgba(107, 161, 228, 0.08), transparent 65%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60' viewBox='0 0 120 60'%3E%3Cg fill='none' stroke='%23F01E37' stroke-opacity='0.06' stroke-width='1.1'%3E%3Cpath d='M0 60a30 30 0 0 1 60 0M60 60a30 30 0 0 1 60 0M-30 60a30 30 0 0 1 60 0M90 60a30 30 0 0 1 60 0'/%3E%3Cpath d='M0 60a20 20 0 0 1 40 0M40 60a20 20 0 0 1 40 0M80 60a20 20 0 0 1 40 0'/%3E%3Cpath d='M0 60a10 10 0 0 1 20 0M20 60a10 10 0 0 1 20 0M40 60a10 10 0 0 1 20 0M60 60a10 10 0 0 1 20 0M80 60a10 10 0 0 1 20 0M100 60a10 10 0 0 1 20 0'/%3E%3C/g%3E%3C/svg%3E"),
+    var(--jsp-paper);
+  color: var(--jsp-ink);
+  min-height: 100vh;
+}
+.dark .jsp-bg {
+  background:
+    radial-gradient(900px 420px at 12% -5%, rgba(240, 30, 55, 0.14), transparent 62%),
+    radial-gradient(760px 380px at 88% 4%, rgba(224, 154, 112, 0.10), transparent 60%),
+    radial-gradient(700px 420px at 50% 100%, rgba(107, 161, 228, 0.10), transparent 65%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60' viewBox='0 0 120 60'%3E%3Cg fill='none' stroke='%23F01E37' stroke-opacity='0.10' stroke-width='1.1'%3E%3Cpath d='M0 60a30 30 0 0 1 60 0M60 60a30 30 0 0 1 60 0M-30 60a30 30 0 0 1 60 0M90 60a30 30 0 0 1 60 0'/%3E%3Cpath d='M0 60a20 20 0 0 1 40 0M40 60a20 20 0 0 1 40 0M80 60a20 20 0 0 1 40 0'/%3E%3C/g%3E%3C/svg%3E"),
+    var(--jsp-paper);
+}
+
+/* Serif display for page titles */
+.jsp-display {
+  font-family: "Lora", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--jsp-ink);
+  text-wrap: balance;
+}
+
+/* Diamond kicker — the recurring motif */
+.jsp-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--jsp-red);
+}
+.jsp-kicker::before {
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  background: var(--jsp-red);
+  transform: rotate(45deg);
+}
+
+/* Cards */
+.jsp-card {
+  background: var(--jsp-card);
+  border: 1px solid var(--jsp-line);
+  border-radius: 18px;
+  box-shadow: 0 1px 2px rgba(31, 31, 40, 0.04), 0 12px 32px -12px rgba(31, 31, 40, 0.12);
+}
+.jsp-glass {
+  background: var(--jsp-surface);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid var(--jsp-line);
+  border-radius: 18px;
+  box-shadow: 0 12px 32px -14px rgba(31, 31, 40, 0.18);
+}
+
+/* Centre nav pill */
+.jsp-navpill {
+  /* No `display` here on purpose: the nav uses Tailwind's `hidden lg:flex`,
+     and a display declaration in this class would override `hidden`. */
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.3rem;
+  border-radius: 9999px;
+  background: var(--jsp-surface);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid var(--jsp-line);
+  box-shadow: 0 8px 24px -12px rgba(31, 31, 40, 0.22);
+}
+.jsp-navlink {
+  padding: 0.45rem 0.95rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--jsp-ink);
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.jsp-navlink:hover { background: rgba(31, 31, 40, 0.05); }
+.dark .jsp-navlink:hover { background: rgba(255, 255, 255, 0.07); }
+.jsp-navlink[data-active="true"] {
+  background: var(--jsp-card);
+  color: var(--jsp-red);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(31, 31, 40, 0.12);
+}
+
+/* Pills: chips + buttons */
+.jsp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.9rem;
+  border-radius: 9999px;
+  border: 1px solid var(--jsp-line);
+  background: var(--jsp-card);
+  font-size: 0.85rem;
+  color: var(--jsp-ink);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  min-height: 2.25rem;
+}
+.jsp-chip:hover { border-color: rgba(240, 30, 55, 0.45); }
+.jsp-chip[data-on="true"] {
+  background: var(--jsp-red);
+  border-color: var(--jsp-red);
+  color: #fff;
+  font-weight: 500;
+}
+
+.jsp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.62rem 1.4rem;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-height: 2.75rem;
+  background: var(--jsp-red);
+  color: #fff;
+  box-shadow: 0 8px 20px -10px rgba(240, 30, 55, 0.8);
+  transition: background 0.15s, transform 0.1s, opacity 0.15s;
+}
+.jsp-btn:hover:not(:disabled) { background: var(--jsp-red-deep); }
+.jsp-btn:active:not(:disabled) { transform: translateY(1px); }
+.jsp-btn:disabled { opacity: 0.42; cursor: not-allowed; box-shadow: none; }
+
+.jsp-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.62rem 1.3rem;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  min-height: 2.75rem;
+  background: var(--jsp-card);
+  border: 1px solid var(--jsp-line);
+  color: var(--jsp-ink);
+  transition: border-color 0.15s, background 0.15s;
+}
+.jsp-btn-ghost:hover { border-color: rgba(240, 30, 55, 0.4); }
+
+/* Inputs */
+.jsp-input {
+  width: 100%;
+  padding: 0.68rem 0.95rem;
+  border-radius: 12px;
+  border: 1px solid var(--jsp-line);
+  background: var(--jsp-card);
+  color: var(--jsp-ink);
+  font-size: 0.92rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.jsp-input::placeholder { color: var(--jsp-muted); opacity: 0.75; }
+.jsp-input:focus {
+  outline: none;
+  border-color: var(--jsp-red);
+  box-shadow: 0 0 0 3px rgba(240, 30, 55, 0.14);
+}
+
+/* Status pills */
+.jsp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.jsp-status-confirmed { background: rgba(87, 180, 118, 0.16); color: #2F7A4C; }
+.dark .jsp-status-confirmed { color: #86D6A2; }
+.jsp-status-pending { background: rgba(217, 165, 46, 0.18); color: #8A6410; }
+.dark .jsp-status-pending { color: #EBC463; }
+.jsp-status-cancelled { background: rgba(31, 31, 40, 0.09); color: var(--jsp-muted); }
+.jsp-status-alert { background: rgba(240, 30, 55, 0.12); color: var(--jsp-red); }
+
+/* Wizard stepper: underline rails */
+.jsp-step {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0.6rem;
+  border-top: 3px solid var(--jsp-line);
+}
+.jsp-step[data-state="done"],
+.jsp-step[data-state="current"] { border-top-color: var(--jsp-red); }
+.jsp-step-label {
+  font-size: 0.78rem;
+  color: var(--jsp-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jsp-step[data-state="current"] .jsp-step-label { color: var(--jsp-ink); font-weight: 600; }
+
+/* Department dots (mini calendar + upcoming lists) */
+.jsp-dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 9999px;
+  display: inline-block;
+  flex: none;
+}
+
+:where(.jsp-bg) :focus-visible {
+  outline: 2px solid var(--jsp-red);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
