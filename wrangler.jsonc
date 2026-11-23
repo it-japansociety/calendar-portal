@@ -29,5 +29,23 @@
   "observability": {
     "enabled": true
   },
-  "upload_source_maps": true
+  "upload_source_maps": true,
+  "env": {
+    // Test copy for people trying out unreleased work. Deploys as its own
+    // Worker with its own database, so nothing done here touches live
+    // bookings. No custom domain: it is served on workers.dev only. No
+    // JOTFORM_API_KEY secret either, so it cannot write to the real form.
+    "dev": {
+      "name": "calendar-portal-dev",
+      "routes": [],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "calendar-portal-dev-db",
+          "database_id": "ffbafcbe-7758-4b62-a343-ed733393491b",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
 }
